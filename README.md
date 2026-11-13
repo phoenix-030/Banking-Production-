@@ -5,6 +5,15 @@ A modern, production-grade web application tailored for Indian banking recruitme
 > [!TIP]
 > For the complete system architecture, data models, entity relationships, and API lifecycle maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+> [!IMPORTANT]
+> ### ⚡ Quick Run (Single Command)
+> To launch the entire application (both backend Express API and frontend Vite React app together):
+> ```powershell
+> npm run dev
+> ```
+> - **Frontend Web App**: [http://localhost:5173](http://localhost:5173)
+> - **Backend REST API**: [http://localhost:3001](http://localhost:3001)
+
 ---
 
 ## What's New: Production Refactoring & Upgrades
@@ -167,51 +176,59 @@ npm run db:seed-admin
 
 ---
 
-## How to Run
+## 🚀 How to Run the Project
 
-### Development Mode (Full Application)
+### 1. Development Mode (All-in-One Command)
 
-Runs both the Node.js backend server and the protected frontend Vite client simultaneously:
+Starts both the backend Express API server and the Vite React frontend concurrently with live reloading:
 
 ```powershell
 npm run dev
 ```
 
-- **Frontend Application**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:3001](http://localhost:3001)
+| Component | URL | Description |
+| :--- | :--- | :--- |
+| **Frontend UI** | [http://localhost:5173](http://localhost:5173) | Vite preview client with DevTools code-protection and `/api` proxy |
+| **Backend API** | [http://localhost:3001](http://localhost:3001) | Express REST API connected to PostgreSQL with native `node --watch` |
 
-### Running Separate Processes
+> [!NOTE]
+> - Backend changes automatically reload instantly with zero compilation delay.
+> - Frontend changes are automatically detected and rebuilt cleanly.
 
-If you prefer dedicated terminal windows:
+---
 
-**Terminal 1 (Backend API with live reload):**
+### 2. Running Services in Separate Terminals
+
+If you prefer dedicated terminal sessions for separate log monitoring:
+
+**Terminal 1 — Backend Express Server (Port 3001):**
 ```powershell
 npm run dev:server
 ```
 
-**Terminal 2 (Frontend Client):**
+**Terminal 2 — Frontend Client (Port 5173):**
 ```powershell
 npm run dev:client
 ```
 
 ---
 
-## Production Build & Deployment
+### 3. Production Mode (Single Port 3001)
 
-To prepare and run the platform for production:
+In production, Express serves both the pre-built, optimized client bundle and all API endpoints on a single port:
 
 ```powershell
-# 1. Ensure migrations are up to date
+# Step 1: Ensure database schema is migrated
 npm run db:migrate
 
-# 2. Build the production frontend bundle into client/dist/
+# Step 2: Compile the frontend into client/dist/ (with sourcemap: false)
 npm run build
 
-# 3. Start the production Node.js server
+# Step 3: Launch the unified production server
 npm start
 ```
 
-In production mode, Express serves the optimized static client from `client/dist/` alongside all `/api` endpoints on the designated `PORT` (default `3001`).
+- **Production App**: [http://localhost:3001](http://localhost:3001)
 
 ---
 
