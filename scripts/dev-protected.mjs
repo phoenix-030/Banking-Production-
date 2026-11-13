@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 process.env.NODE_ENV = 'production';
 const { build, preview } = await import('vite');
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../client');
 
 let building = false;
 let pending = false;
@@ -19,7 +19,8 @@ async function rebuild(clean = false) {
   building = true;
   try {
     await build({
-      root,
+      root: clientRoot,
+      configFile: path.join(clientRoot, 'vite.config.js'),
       logLevel: clean ? 'info' : 'warn',
       build: { emptyOutDir: clean },
     });
@@ -36,10 +37,13 @@ async function rebuild(clean = false) {
 
 await rebuild(true);
 
-const server = await preview({ root });
+const server = await preview({
+  root: clientRoot,
+  configFile: path.join(clientRoot, 'vite.config.js'),
+});
 server.printUrls();
 
-const watchTargets = [path.join(root, 'src'), path.join(root, 'index.html')];
+const watchTargets = [path.join(clientRoot, 'src'), path.join(clientRoot, 'index.html')];
 const watchers = watchTargets
   .filter((target) => fs.existsSync(target))
   .map((target) =>

@@ -7,16 +7,16 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node scripts/dev-protected.mjs",
-    "dev:hmr": "vite",
-    "dev:server": "tsx watch server/index.ts",
-    "dev:full": "concurrently -k -n API,WEB \"npm:dev:server\" \"npm:dev\"",
-    "start:server": "tsx server/index.ts",
-    "db:migrate": "tsx server/migrate.ts",
-    "db:seed-admin": "tsx server/seed-admin.ts",
-    "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
-    "build": "tsc -b && npm run typecheck:server && node scripts/build-web.mjs",
-    "preview": "vite preview"
+    "dev": "concurrently -k -n API,WEB \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "node scripts/dev-protected.mjs",
+    "dev:server": "node --watch server/index.js",
+    "start": "node server/index.js",
+    "start:server": "node server/index.js",
+    "build": "node scripts/build-web.mjs",
+    "preview": "vite preview client",
+    "db:migrate": "node server/migrate.js",
+    "db:seed-admin": "node server/seed-admin.js",
+    "test": "node tests/verify_workflow.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -35,20 +35,11 @@
     "react": "latest",
     "react-dom": "latest",
     "read-excel-file": "^9.3.14",
-    "tsx": "^4.23.15",
-    "typescript": "latest",
     "vite": "latest",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/connect-pg-simple": "^7.0.3",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/express-session": "^1.19.0",
-    "@types/node": "^26.6.6",
-    "@types/nodemailer": "^8.0.2",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "concurrently": "^10.0.6"
+    "concurrently": "^10.0.6",
+    "esbuild": "latest"
   }
 }
