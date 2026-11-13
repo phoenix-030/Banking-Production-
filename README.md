@@ -1,24 +1,111 @@
 # HHK Banking Exam Preparation Platform
 
-An exam preparation web application for Indian banking recruitment tests. It includes student accounts, exam and question administration, mock test authoring and delivery, topic practice, performance history, previous year questions, current affairs, and admin reporting.
+A modern, production-grade web application tailored for Indian banking recruitment examinations (IBPS, SBI, RBI, NABARD, and Other Financial Institutions). The platform provides a full student workspace (timed CBT mock tests, daily challenges, topic-wise practice, bookmarks, live milestones) alongside an administrative control center (exam pattern configuration, question bank importing, student management, attempt grading, and audit logs).
 
 > [!TIP]
-> For a complete architectural flow map, database entity diagrams, and API lifecycle breakdown, see [ARCHITECTURE.md](ARCHITECTURE.md).
+> For the complete system architecture, data models, entity relationships, and API lifecycle maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## What's New: Production Refactoring & Upgrades
+
+1. **Clean Production-Level Architecture**:
+   - Distinct, decoupled layers: `client/` (Frontend SPA), `server/` (Node.js API), `shared/` (shared models/constants), `docs/` (specifications), `scripts/` (build/dev utilities), and `tests/` (integration test suites).
+2. **Pure JavaScript & JSX Transition**:
+   - Converted 100% of frontend components from TypeScript to pure React 19 JSX (`.jsx`/`.js`).
+   - Converted 100% of backend services and routes to pure Node.js ES Modules (`.js`).
+   - Eliminated TypeScript compiler overhead (`tsc`) for instant server startups with native Node.js `--watch`.
+3. **Master Exam Catalogue (19 Exams Across 5 Categories)**:
+   - **IBPS**: PO, CSA, SO, RRB PO, RRB Scale II, RRB Scale III, RRB Office Assistant (7)
+   - **SBI**: PO, Clerk, SO (3)
+   - **RBI**: Grade B, Assistant (2)
+   - **NABARD**: Grade A, Grade B (2)
+   - **Other Banks / Institutions**: IDBI, SIDBI, ECGC, EXIM, IIFCL (5)
+4. **Question Bank Auto-Mock Sync (20-Question Threshold)**:
+   - Once an administrator uploads at least 20 published questions for an exam stage, the platform automatically generates and publishes a full dynamic mock test available to students.
+5. **Dynamic Option Shuffling**:
+   - Answer choices (A, B, C, D) are randomly permuted on every student attempt, preventing pattern memorization while tracking the correct answer accurately on the backend.
+6. **Daily 1-Question Challenge**:
+   - Daily question selector that tracks consecutive study days (streaks) and unlocks live milestone trophies.
+7. **Proctored CBT Exam Experience**:
+   - **Single-Tab Lock**: BroadcastChannel detects duplicate tabs and automatically locks secondary sessions.
+   - **Fullscreen Enforcement**: Alerts and auto-submits on repeated escape attempts.
+   - **Mouse-Only Mode**: Prevents unauthorized keyboard shortcuts during tests.
+   - **Dummy Camera Monitor**: Local webcam mirror providing simulated proctoring without recording or leaking student video.
+8. **DevTools Security & Code Concealment**:
+   - Production Vite builds disable source maps (`sourcemap: false`) and block direct DevTools requests to source paths and configuration files.
+
+---
+
+## Directory Structure
+
+```text
+BANKING-PLATFORM/
+├── client/                               # Frontend Single-Page Application (React 19, pure JSX)
+│   ├── index.html                        # Application HTML entry point
+│   ├── vite.config.js                    # Vite configuration (source blocking, API proxy, CSP)
+│   ├── public/                           # Static brand logos (hhk-logo.png, hik-logo.png)
+│   └── src/
+│       ├── main.jsx                      # React entry mounting
+│       ├── App.jsx                       # Root routing, toasts, tab lockout listener
+│       ├── AuthPage.jsx                  # Sign-in, sign-up, forgot/reset password
+│       ├── AdminOverview.jsx             # Admin dashboard landing
+│       ├── AdminPanel.jsx                # Full administration portal
+│       ├── StudentWorkspace.jsx          # Student preparation dashboard
+│       ├── api/
+│       │   └── client.js                 # Authenticated fetch wrapper
+│       ├── components/
+│       │   ├── common/                   # Field.jsx, ExamOptGroups.jsx
+│       │   ├── auth/                     # AuthBrand, LoginForm, RegisterForm, etc.
+│       │   ├── admin/                    # ExamSetupView, QuestionBankView, MockTestBuilderView, etc.
+│       │   └── student/                  # TestRunner, PracticeRunner, DailyChallengeView, etc.
+│       ├── styles/                       # Modular CSS stylesheets (admin, auth, student, etc.)
+│       └── utils/
+│           ├── examCategories.js         # Master banking category groupings
+│           └── examLock.js               # Single-tab proctoring and fullscreen helpers
+│
+├── server/                               # Backend API (Node.js ES Modules, pure JS)
+│   ├── index.js                          # Express app, Helmet, session store, static fallback
+│   ├── db.js                             # pg.Pool connection with SSL and timeouts
+│   ├── middleware.js                     # requireAuth, requireAdmin, Zod validator
+│   ├── schemas.js                        # Request/response validation schemas
+│   ├── migrate.js                        # SQL migration runner
+│   ├── seed-admin.js                     # Administrator account bootstrapping
+│   ├── migrations/                       # 001 through 014 SQL migrations
+│   ├── routes/                           # admin.js, attempts.js, auth.js, content.js
+│   └── services/                         # questionBankSync.js, questionSelection.js, milestones.js
+│
+├── shared/                               # Shared constants & logic between client and server
+│   ├── constants.js                      # EXAM_CATEGORIES list
+│   └── examCategories.js                 # groupExamsByCategory helper
+│
+├── docs/
+│   └── ARCHITECTURE.md                   # Complete architectural guide & data flow map
+│
+├── scripts/
+│   ├── build-web.mjs                     # Production client build runner
+│   └── dev-protected.mjs                 # Protected dev server with hot reload & source blocking
+│
+├── tests/
+│   └── verify_workflow.js                # Integration suite verifying all 6 platform workflows
+│
+├── .env, .env.example, .gitignore
+├── docker-compose.yml
+└── package.json
+```
 
 ---
 
 ## Prerequisites
 
 - **Node.js**: Version 20 or 22+ installed ([nodejs.org](https://nodejs.org/))
-- **PostgreSQL**: Either installed locally (via pgAdmin 4 / PostgreSQL installer) or via Docker Desktop.
+- **PostgreSQL**: PostgreSQL 15+ running locally (or via Docker Desktop)
 
 ---
 
 ## Quick Start & Setup
 
 ### 1. Install Dependencies
-
-Open PowerShell or your terminal in the project directory:
 
 ```powershell
 npm install
@@ -62,112 +149,100 @@ SMTP_FROM=
 ```
 
 > [!NOTE]
-> If your database name has spaces (e.g., `HHK Administrator`), encode the space as `%20`:
-> `DATABASE_URL=postgresql://postgres:TIGER@localhost:5432/HHK%20Administrator`
+> If your database name contains spaces, URL-encode the space as `%20` (e.g. `postgresql://postgres:TIGER@localhost:5432/HHK%20Administrator`).
 
 ### 3. Setup the Database
 
-Make sure your PostgreSQL server is running. Then apply migrations and create your administrator account:
+Apply all SQL migrations and seed the initial administrator:
 
 ```powershell
-# Run all database migrations (creates all 31 tables)
+# Run all 14 database migrations
 npm run db:migrate
 
-# Seed your first administrator account
+# Seed your default administrator account
 npm run db:seed-admin
 ```
 
-*(If using Docker Desktop for PostgreSQL instead of local install, run `docker compose up -d postgres` before running `npm run db:migrate`)*.
+*(If using Docker Desktop for PostgreSQL instead of a local install, run `docker compose up -d postgres` before running `npm run db:migrate`)*.
 
 ---
 
-## How to Run the Project
+## How to Run
 
-### Option 1: Run Full Application Together (Recommended)
+### Development Mode (Full Application)
 
-This runs both the backend Express API and the Vite frontend simultaneously with a single command:
-
-```powershell
-npm run dev:full
-```
-
-- **Frontend**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:3001](http://localhost:3001)
-
----
-
-### Option 2: Run in Separate Terminals
-
-If you prefer separate terminal windows for frontend and backend:
-
-**Terminal 1 (Backend API):**
-
-```powershell
-npm run dev:server
-```
-
-*Starts the Express server with file watching on `http://localhost:3001`.*
-
-**Terminal 2 (Frontend UI):**
+Runs both the Node.js backend server and the protected frontend Vite client simultaneously:
 
 ```powershell
 npm run dev
 ```
 
-*Starts the Vite dev server on `http://localhost:5173`.*
+- **Frontend Application**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:3001](http://localhost:3001)
+
+### Running Separate Processes
+
+If you prefer dedicated terminal windows:
+
+**Terminal 1 (Backend API with live reload):**
+```powershell
+npm run dev:server
+```
+
+**Terminal 2 (Frontend Client):**
+```powershell
+npm run dev:client
+```
 
 ---
 
-## All Available Commands
+## Production Build & Deployment
+
+To prepare and run the platform for production:
+
+```powershell
+# 1. Ensure migrations are up to date
+npm run db:migrate
+
+# 2. Build the production frontend bundle into client/dist/
+npm run build
+
+# 3. Start the production Node.js server
+npm start
+```
+
+In production mode, Express serves the optimized static client from `client/dist/` alongside all `/api` endpoints on the designated `PORT` (default `3001`).
+
+---
+
+## Verification & Testing
+
+The project includes an end-to-end workflow verification script that validates the core business rules inside an isolated, safe rollback transaction (zero test data pollution):
+
+```powershell
+npm test
+```
+
+**Verifies:**
+1. Master exam categorization logic in `shared/`.
+2. PostgreSQL database connectivity.
+3. Master exam count (all 19 exams across all 5 banking categories).
+4. Question Bank 20-question threshold auto-mock test creator.
+5. Dynamic option shuffler and answer strip validation.
+6. Safe database transaction rollback.
+
+---
+
+## Available NPM Scripts
 
 | Command | Description |
 | :--- | :--- |
-| `npm run dev:full` | **Starts both backend API server and frontend website together** |
-| `npm run dev:server` | Starts the Express backend server in watch mode (`port 3001`) |
-| `npm run dev` | Starts the Vite frontend development server (`port 5173`) |
-| `npm run db:migrate` | Runs all pending SQL migrations against the database |
-| `npm run db:seed-admin` | Creates the default administrator user from `.env` values |
-| `npm run typecheck:server` | Type-checks server TypeScript files without emitting code |
-| `npm run build` | Builds the project: client bundle + server type check |
+| `npm run dev` | **Starts both backend API and frontend client concurrently** |
+| `npm run dev:server` | Starts Express backend in native Node.js `--watch` mode (`port 3001`) |
+| `npm run dev:client` | Starts Vite protected development client (`port 5173`) |
+| `npm run build` | Builds optimized client bundle into `client/dist/` (no source maps) |
 | `npm run preview` | Previews the production client build locally |
-| `npm run start:server` | Runs the compiled server in production mode |
-
----
-
-## Production Deployment
-
-To run in production mode:
-
-```powershell
-npm ci
-npm run db:migrate
-npm run build
-$env:NODE_ENV = "production"
-npm run start:server
-```
-
-In production, the Express server serves both the built website and API routes on `PORT` (default `3001`).
-
----
-
-## Troubleshooting
-
-### "Unexpected end of JSON input" or "Unable to reach the server"
-
-- This means your frontend is running, but the backend Express API on port `3001` is not started.
-- **Fix**: Run `npm run dev:full` instead of just `npm run dev`, or start `npm run dev:server` in a separate terminal.
-
-### Database Connection Error
-
-- Check that your PostgreSQL service is running on `localhost:5432`.
-- Verify the username, password, and database name in `DATABASE_URL` inside `.env`.
-- Test running `npm run db:migrate` to verify connection.
-
----
-
-## Features Implemented
-
-- **Student Workspace**: Registration, sign-in, profile, password reset, mock test runner with sectional timers, question palette, review status, daily challenges, and topic practice.
-- **Eye View Password Toggle**: Easy visibility toggle on sign-up, sign-in, and reset password forms.
-- **Admin Dashboard**: Exam pattern authoring, section configuration, MCQ / passage / descriptive questions, question bank import via CSV/Excel, student attempt grading queue, current affairs manager, and audit logs.
-- **Robust Security**: Bcrypt password hashing, session management with PostgreSQL session store, rate limiting, and HTTP security headers.
+| `npm start` | Runs the production Express server serving API + static frontend |
+| `npm run db:migrate` | Applies all pending migrations from `server/migrations/` |
+| `npm run db:seed-admin` | Bootstraps the administrator account defined in `.env` |
+| `npm test` | Runs the integration and workflow test suite |
