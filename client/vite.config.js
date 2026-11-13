@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const blockedSourcePath =
-  /^\/(?:src\/|server\/|scripts\/|\.env|package(?:-lock)?\.json$|tsconfig[^/]*\.json$)|(?:\.map|\.[tj]sx?)(?:\?|$)/i;
+  /^\/(?:src\/|server\/|scripts\/|\.env|package(?:-lock)?\.json$|tsconfig[^/]*\.json$)|(?:\.map|\.tsx?|\.jsx)(?:\?|$)/i;
 
 function blockSourceExposure() {
   return {
@@ -26,6 +26,7 @@ function blockSourceExposure() {
 export default defineConfig({
   plugins: [react(), blockSourceExposure()],
   server: {
+    host: '0.0.0.0',
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3001',
@@ -34,6 +35,7 @@ export default defineConfig({
     },
   },
   preview: {
+    host: '0.0.0.0',
     port: 5173,
     strictPort: true,
     proxy: {

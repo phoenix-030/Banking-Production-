@@ -158,7 +158,7 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'API endpoint not f
 
 // 10. Block any source/map exposure and serve compiled bundle
 const blockedSourcePattern =
-  /^\/(?:src\/|client\/|server\/|scripts\/|\.env|package(?:-lock)?\.json$|tsconfig[^/]*\.json$)|(?:\.map|\.tsx?)$/i;
+  /^\/(?:src\/|client\/|server\/|scripts\/|\.env|package(?:-lock)?\.json$|tsconfig[^/]*\.json$)|(?:\.map|\.tsx?|\.jsx)$/i;
 app.use((req, res, next) => {
   if (blockedSourcePattern.test(req.path)) {
     return res.status(404).type('text/plain').send('Not Found');
