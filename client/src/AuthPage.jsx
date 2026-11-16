@@ -5,7 +5,8 @@ import { RegisterForm } from "./components/auth/RegisterForm";
 import { ForgotPasswordForm } from "./components/auth/ForgotPasswordForm";
 import { ResetPasswordForm } from "./components/auth/ResetPasswordForm";
 function AuthPage({
-  onAuthenticated
+  onAuthenticated,
+  onToast
 }) {
   const resetToken = new URLSearchParams(window.location.search).get("reset") ?? "";
   const [mode, setMode] = useState(resetToken ? "reset" : "login");
@@ -32,11 +33,12 @@ function AuthPage({
           body?.error ?? "Unable to reach the server. Please ensure the backend is running on port 3001."
         );
       }
+      onToast?.(`Welcome back, ${body.user.fullName || body.user.email}!`, "success");
       onAuthenticated(body.user);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again."
-      );
+      const msg = err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again.";
+      setError(msg);
+      onToast?.(msg, "error");
     } finally {
       setBusy(false);
     }
@@ -57,11 +59,12 @@ function AuthPage({
           body?.error ?? "Unable to reach the server. Please ensure the backend is running on port 3001."
         );
       }
+      onToast?.(`Account registered! Welcome to HHK, ${body.user.fullName || body.user.email}!`, "success");
       onAuthenticated(body.user);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again."
-      );
+      const msg = err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again.";
+      setError(msg);
+      onToast?.(msg, "error");
     } finally {
       setBusy(false);
     }
@@ -82,10 +85,11 @@ function AuthPage({
         );
       }
       setNotice(body.message);
+      onToast?.(body.message, "info");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again."
-      );
+      const msg = err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again.";
+      setError(msg);
+      onToast?.(msg, "error");
     } finally {
       setBusy(false);
     }
@@ -110,12 +114,13 @@ function AuthPage({
         );
       }
       setNotice(body.message);
+      onToast?.(body.message, "success");
       window.history.replaceState({}, "", window.location.pathname);
       setMode("login");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again."
-      );
+      const msg = err instanceof Error ? err.message : "API unavailable. Start the HHK API server and try again.";
+      setError(msg);
+      onToast?.(msg, "error");
     } finally {
       setBusy(false);
     }

@@ -31,7 +31,13 @@ function StudentWorkspace({
   onToast
 }) {
   const [data, setData] = useState(null);
-  const [error, setError] = useState("");
+  const [error, setRawError] = useState("");
+  const setError = (msg) => {
+    setRawError(msg || "");
+    if (msg) {
+      onToast(msg, "error");
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [attemptId, setAttemptId] = useState("");
   const [result, setResult] = useState(null);

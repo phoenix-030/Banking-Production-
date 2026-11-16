@@ -61,7 +61,13 @@ function AdminOverview({
   const [gradingDrafts, setGradingDrafts] = useState({});
   const [logs, setLogs] = useState([]);
   const [search, setSearch] = useState("");
-  const [error, setError] = useState("");
+  const [error, setRawError] = useState("");
+  const setError = (msg) => {
+    setRawError(msg || "");
+    if (msg) {
+      onToast(msg, "error");
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [builder, setBuilder] = useState(false);
   const [editingTestId, setEditingTestId] = useState("");

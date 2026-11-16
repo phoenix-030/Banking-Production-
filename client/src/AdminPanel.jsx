@@ -86,7 +86,13 @@ function AdminPanel({
   const [questions, setQuestions] = useState([]);
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setRawError] = useState("");
+  const setError = (msg) => {
+    setRawError(msg || "");
+    if (msg) {
+      onToast(msg, "error");
+    }
+  };
   const [newName, setNewName] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState(emptyForm());

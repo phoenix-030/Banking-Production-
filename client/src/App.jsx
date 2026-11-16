@@ -3,15 +3,19 @@ import { ExamOptGroups } from "./utils/examCategories";
 import { subscribeCompanionTabLock } from "./utils/examLock";
 import {
   Activity,
+  AlertCircle,
+  AlertTriangle,
   Bell,
   BookOpen,
   Bookmark,
   CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   CircleHelp,
   Flame,
+  Info,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -52,15 +56,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState("Overview");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [toast, setToast] = useState("");
+  const [toasts, setToasts] = useState([]);
   const [lockedOutInfo, setLockedOutInfo] = useState(null);
   useEffect(() => subscribeCompanionTabLock(setLockedOutInfo), []);
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" }).then(async (r) => r.ok ? (await r.json()).user : null).then(setUser).catch(() => setUser(null)).finally(() => setLoading(false));
   }, []);
-  function flash(message) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 3200);
+  function flash(message, type = "success") {
+    if (!message) return;
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const text = typeof message === "object" ? (message.message || message.error || JSON.stringify(message)) : String(message);
+    const toastType = typeof message === "object" && message.type ? message.type : type;
+
+    setToasts((prev) => [...prev.slice(-3), { id, text, type: toastType }]);
+
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  }
+  function removeToast(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }
   async function signOut() {
     await fetch("/api/auth/logout", {
@@ -69,6 +84,7 @@ function App() {
     }).catch(() => void 0);
     setUser(null);
     setActive("Overview");
+    flash("You have been signed out successfully.", "info");
   }
   if (lockedOutInfo)
     return <div className="cbt-locked-tab" role="alertdialog" aria-modal="true">
@@ -94,11 +110,14 @@ function App() {
   if (!user)
     return <Suspense fallback={<div className="auth-loading">Loading HHK…</div>}>
         <AuthPage
-      onAuthenticated={(u) => {
-        setUser(u);
-        setActive(u.role === "admin" ? "Admin dashboard" : "Overview");
-      }}
-    />
+          onAuthenticated={(u) => {
+            setUser(u);
+            setActive(u.role === "admin" ? "Admin dashboard" : "Overview");
+            flash(`Welcome back, ${u.full_name || u.email}!`, "success");
+          }}
+          onToast={flash}
+        />
+        <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </Suspense>;
   const pages = user.role === "admin" ? adminPages : studentPages;
   return <div className="app-shell">
@@ -222,11 +241,41 @@ function App() {
           </Suspense>
         </div>
       </main>
-      {toast && <div className="toast">
-          <Check size={17} />
-          {toast}
-        </div>}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>;
+}
+function ToastContainer({ toasts, onDismiss }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="toast-container" role="status" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast toast-${t.type}`}>
+          <div className="toast-content">
+            <span className="toast-icon">
+              {t.type === "error" ? (
+                <AlertCircle size={18} />
+              ) : t.type === "warning" ? (
+                <AlertTriangle size={18} />
+              ) : t.type === "info" ? (
+                <Info size={18} />
+              ) : (
+                <CheckCircle2 size={18} />
+              )}
+            </span>
+            <span>{t.text}</span>
+          </div>
+          <button
+            type="button"
+            className="toast-close-btn"
+            onClick={() => onDismiss(t.id)}
+            aria-label="Dismiss notification"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 function TargetExamSelector({
   onToast
@@ -269,9 +318,10 @@ function TargetExamSelector({
       window.dispatchEvent(
         new CustomEvent("hhk:target-exam-updated", { detail: id })
       );
-      onToast("Target examination saved.");
+      onToast("Target examination saved.", "success");
     } catch {
       setError("Could not save target examination.");
+      onToast("Could not save target examination.", "error");
     }
   }
   return <div className="target-card">
