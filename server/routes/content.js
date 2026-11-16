@@ -48,7 +48,7 @@ contentRouter.get("/exams", requireAuth, async (req, res) => {
 
 contentRouter.get("/practice/catalog", requireAuth, async (_req, res) => {
   const rows = await pool.query(
-    `SELECT DISTINCT
+    `SELECT
        e.id exam_id, e.name exam_name,
        st.id stage_id, st.name stage_name,
        s.id section_id, s.name section_name,
