@@ -44,8 +44,6 @@ const adminPages = [
   ["Question bank", BookOpen],
   ["Mock tests", Target],
   ["Role management", UserCheck],
-  ["Students", Activity],
-  ["Current affairs", CalendarDays],
   ["Reports", ShieldCheck],
   ["Activity Logs", ShieldCheck]
 ];

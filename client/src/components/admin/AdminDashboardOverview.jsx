@@ -106,8 +106,7 @@ function AdminDashboardOverview({
             "Question bank",
             "Mock tests",
             "Role management",
-            "Current affairs",
-            "Students"
+            "Reports"
           ].map((page) => (
             <button
               className="outline-btn admin-action"
