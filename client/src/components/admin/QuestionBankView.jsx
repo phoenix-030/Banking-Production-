@@ -1,93 +1,74 @@
+// ============================================================================
+// QUESTION BANK MANAGEMENT & CONTENT AUTHORING VIEW
+// ============================================================================
+// Features:
+// 1. Bulk CSV/Excel Importer with 20-question minimum validation & automatic activation
+// 2. Exam -> Stage -> Section -> Topic -> Subtopic -> Difficulty hierarchy authoring
+// 3. Dynamic banking syllabus topic dropdowns with subtopic cascade (DI, Puzzles, etc.)
+// 4. Passage-group comprehension linking, image-based, MCQ, and descriptive questions
+// 5. Saved questions search, filter by topic, multi-select bulk operations, and deduplication
+// ============================================================================
+
 import { useState } from "react";
-import {
-  Check,
-  Copy,
-  FileQuestion,
-  FileSpreadsheet,
-  Save,
-  Search,
-  Trash2
-} from "lucide-react";
+import {  Check,  Copy,  FileQuestion,  FileSpreadsheet,  Save,  Search,  Trash2,} from "lucide-react";
 import { Field } from "../common/Field";
-import {
-  ExamOptGroups,
-  groupExamsByCategory
-} from "../../utils/examCategories";
-import {
-  BANKING_SYLLABUS,
-  getTopicsForSection,
-  getSubtopicsForTopic
-} from "../../shared/bankingSyllabus.js";
-function QuestionBankView({
-  exams,
-  examIndex,
-  stageIndex,
-  questions,
-  visibleQuestions,
-  filter,
-  form,
-  editId,
-  preview,
-  uploadFile,
-  uploadPreview,
-  confirmRows,
-  passageGroups,
-  newPassage,
-  showNewPassage,
-  selectedQuestionIds,
-  busy,
-  onSetExamIndex,
-  onSetStageIndex,
-  onSetFilter,
-  onSetForm,
-  onSetPreview,
-  onSetUploadFile,
-  onSetUploadPreview,
-  onSetNewPassage,
-  onSetShowNewPassage,
-  onSetSelectedQuestionIds,
-  onPreviewUpload,
-  onConfirmUpload,
-  onCreatePassageGroup,
-  onSaveQuestion,
-  onEditQuestion,
-  onDuplicateQuestion,
-  onBulkQuestionStatus,
-  onRemoveQuestion
-}) {
-  const [isCustomTopic, setIsCustomTopic] = useState(false);
+import {  ExamOptGroups,  groupExamsByCategory,} from "../../utils/examCategories";
+import {  BANKING_SYLLABUS,  getTopicsForSection,  getSubtopicsForTopic,} from "../../shared/bankingSyllabus.js";
+
+/**
+ * QuestionBankView - Full banking syllabus question authoring and bulk import
+ */
+function QuestionBankView({  exams,examIndex,stageIndex,questions,visibleQuestions,filter,
+  form, editId,  preview, uploadFile,  uploadPreview,  confirmRows,  passageGroups,  newPassage,
+  showNewPassage,  selectedQuestionIds,  busy,  onSetExamIndex,  onSetStageIndex,  onSetFilter,  onSetForm,
+  onSetPreview,  onSetUploadFile,  onSetUploadPreview,  onSetNewPassage,  onSetShowNewPassage,  onSetSelectedQuestionIds,
+  onPreviewUpload,  onConfirmUpload,  onCreatePassageGroup,  onSaveQuestion,  onEditQuestion,  onDuplicateQuestion,
+  onBulkQuestionStatus,  onRemoveQuestion,}) {
+      const [isCustomTopic, setIsCustomTopic] = useState(false);
   const [isCustomSubtopic, setIsCustomSubtopic] = useState(false);
   const [topicFilter, setTopicFilter] = useState("");
 
   const exam = exams[examIndex];
   const stage = exam?.stages[stageIndex];
   const selectedSection = stage?.sections.find((s) => s.id === form.sectionId);
-  const syllabusTopics = selectedSection ? getTopicsForSection(selectedSection.name) : [];
-  const availableSubtopics = (selectedSection && form.topicName) ? getSubtopicsForTopic(selectedSection.name, form.topicName) : [];
+  const syllabusTopics = selectedSection
+    ? getTopicsForSection(selectedSection.name)
+    : [];
+  const availableSubtopics =
+    selectedSection && form.topicName
+      ? getSubtopicsForTopic(selectedSection.name, form.topicName)
+      : [];
 
   const stagePublishedCount = questions.filter(
-    (q) => q.exam_name === exam?.name && q.stage_name === stage?.name && q.status === "published"
+    (q) =>
+      q.exam_name === exam?.name &&
+      q.stage_name === stage?.name &&
+      q.status === "published",
   ).length;
   const minRequired = Number(uploadPreview?.minimumRequired ?? 20);
   const meetsMinimumUpload = confirmRows.length >= minRequired;
 
-  const distinctTopics = [...new Set(questions.map((q) => q.topic_name).filter(Boolean))].sort();
+  const distinctTopics = [
+    ...new Set(questions.map((q) => q.topic_name).filter(Boolean)),
+  ].sort();
   const filteredQuestions = topicFilter
     ? visibleQuestions.filter((q) => q.topic_name === topicFilter)
     : visibleQuestions;
-  return <>
+  return (
+    <>
       <section className="panel admin-panel import-panel">
         <div className="admin-panel-heading">
           <div>
             <span className="section-kicker">BULK QUESTION UPLOAD</span>
             <h2>
-              <FileSpreadsheet size={17} /> CSV or Excel import (Min 20 questions)
+              <FileSpreadsheet size={17} /> CSV or Excel import (Min 20
+              questions)
             </h2>
           </div>
           <a
-    className="outline-btn admin-action"
-    href="/api/admin/questions/import/template.csv"
-  >
+            className="outline-btn admin-action"
+            href="/api/admin/questions/import/template.csv"
+          >
             Download template
           </a>
         </div>
@@ -108,24 +89,41 @@ function QuestionBankView({
             Validate upload
           </button>
         </div>
-        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 10px" }}>
-          Template columns: <code>exam_code</code>, <code>stage</code>, <code>section</code>, <code>topic</code>, <code>subtopic</code> (optional), <code>difficulty</code>, <code>question</code>, <code>option_a..d</code>, <code>correct_answer</code>, <code>explanation</code>, <code>language</code>, <code>source</code>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "var(--text-muted)",
+            margin: "4px 0 10px",
+          }}
+        >
+          Template columns: <code>exam_code</code>, <code>stage</code>,{" "}
+          <code>section</code>, <code>topic</code>, <code>subtopic</code>{" "}
+          (optional), <code>difficulty</code>, <code>question</code>,{" "}
+          <code>option_a..d</code>, <code>correct_answer</code>,{" "}
+          <code>explanation</code>, <code>language</code>, <code>source</code>
         </p>
-        {exams.length > 0 && <details className="supported-codes-hint">
+        {exams.length > 0 && (
+          <details className="supported-codes-hint">
             <summary>
-              Supported <code>exam_code</code> values ({exams.length} exams across{" "}
-              {groupExamsByCategory(exams).length} categories)
+              Supported <code>exam_code</code> values ({exams.length} exams
+              across {groupExamsByCategory(exams).length} categories)
             </summary>
             <div className="supported-codes-grid">
-              {groupExamsByCategory(exams).map((group) => <div key={group.category}>
+              {groupExamsByCategory(exams).map((group) => (
+                <div key={group.category}>
                   <strong>{group.category}</strong>
                   <span>
-                    {group.exams.map((item) => `${item.code} (${item.name})`).join(" \xB7 ")}
+                    {group.exams
+                      .map((item) => `${item.code} (${item.name})`)
+                      .join(" \xB7 ")}
                   </span>
-                </div>)}
+                </div>
+              ))}
             </div>
-          </details>}
-        {uploadPreview && <div className="upload-results">
+          </details>
+        )}
+        {uploadPreview && (
+          <div className="upload-results">
             <div>
               <b>{uploadPreview.total}</b>
               <span>Total</span>
@@ -143,33 +141,42 @@ function QuestionBankView({
               <span>Duplicates</span>
             </div>
             <button
-    className="primary-btn"
-    disabled={!meetsMinimumUpload || busy}
-    onClick={onConfirmUpload}
-  >
-              {meetsMinimumUpload ? `Upload & publish ${confirmRows.length} questions to Mock Tests` : `Minimum ${minRequired} valid questions required (${confirmRows.length}/${minRequired})`}
+              className="primary-btn"
+              disabled={!meetsMinimumUpload || busy}
+              onClick={onConfirmUpload}
+            >
+              {meetsMinimumUpload
+                ? `Upload & publish ${confirmRows.length} questions to Mock Tests`
+                : `Minimum ${minRequired} valid questions required (${confirmRows.length}/${minRequired})`}
             </button>
-            {!meetsMinimumUpload && <div className="min-upload-warning" role="alert">
+            {!meetsMinimumUpload && (
+              <div className="min-upload-warning" role="alert">
                 At least <strong>{minRequired} valid questions</strong> are
                 required to upload to the Question Bank and publish to Student
                 Mock Tests (currently {confirmRows.length} valid — add{" "}
                 {minRequired - confirmRows.length} more).
-              </div>}
-            {uploadPreview.errors.length > 0 && <>
+              </div>
+            )}
+            {uploadPreview.errors.length > 0 && (
+              <>
                 <a
-    className="outline-btn admin-action"
-    href={`/api/admin/questions/import/${uploadPreview.batchId}/errors.csv`}
-  >
+                  className="outline-btn admin-action"
+                  href={`/api/admin/questions/import/${uploadPreview.batchId}/errors.csv`}
+                >
                   Download row error report
                 </a>
                 <details>
                   <summary>Row errors</summary>
-                  {uploadPreview.errors.map((x) => <p key={x.rowNumber}>
+                  {uploadPreview.errors.map((x) => (
+                    <p key={x.rowNumber}>
                       Row {x.rowNumber}: {x.errors.join("; ")}
-                    </p>)}
+                    </p>
+                  ))}
                 </details>
-              </>}
-          </div>}
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       <div className="question-bank-layout">
@@ -183,62 +190,60 @@ function QuestionBankView({
               </h2>
             </div>
           </div>
-          {exam && stage && <div
-    className={`stage-readiness-bar ${stagePublishedCount >= 20 ? "ready" : ""}`}
-    role="status"
-  >
+          {exam && stage && (
+            <div
+              className={`stage-readiness-bar ${stagePublishedCount >= 20 ? "ready" : ""}`}
+              role="status"
+            >
               <strong>
                 {exam.name} · {stage.name}
               </strong>
               <span>
-                {stagePublishedCount >= 20 ? `${stagePublishedCount} published questions \xB7 Active in Student Mock Tests & Daily Challenge` : `${stagePublishedCount} / 20 published questions \xB7 Add ${20 - stagePublishedCount} more to unlock Student Mock Tests`}
+                {stagePublishedCount >= 20
+                  ? `${stagePublishedCount} published questions \xB7 Active in Student Mock Tests & Daily Challenge`
+                  : `${stagePublishedCount} / 20 published questions \xB7 Add ${20 - stagePublishedCount} more to unlock Student Mock Tests`}
               </span>
-            </div>}
-          {exam && exam.status !== "published" && <div className="admin-notice" role="status">
+            </div>
+          )}
+          {exam && exam.status !== "published" && (
+            <div className="admin-notice" role="status">
               <strong>{exam.name}</strong> is currently in{" "}
               <strong>{exam.status}</strong> status. Uploading or publishing{" "}
               <strong>20+ questions</strong> will automatically activate it in
               Student Mock Tests, Practice, and Daily Challenge.
-            </div>}
+            </div>
+          )}
           <div className="question-config">
-            <label>
-              Exam
-              <select
-    value={examIndex}
-    onChange={(e) => {
-      onSetExamIndex(Number(e.target.value));
-      onSetStageIndex(0);
-      onSetForm((v) => ({
-        ...v,
-        sectionId: "",
-        passageGroupId: ""
-      }));
-    }}
-  >
-                <ExamOptGroups
-    exams={exams}
-    getKey={(e) => e.id}
-    getValue={(_e, i) => i}
-    getLabel={(e) => `${e.name} \xB7 ${e.status}`}
-  />
+            <label>              Exam              <select    value={examIndex}              onChange={(e) => {
+                  onSetExamIndex(Number(e.target.value));   onSetStageIndex(0);             onSetForm((v) => ({
+                    ...v,                 sectionId: "",                 passageGroupId: "",
+                  }));                }}              >         
+                         <ExamOptGroups
+                  exams={exams}
+                  getKey={(e) => e.id}
+                  getValue={(_e, i) => i}
+                  getLabel={(e) => `${e.name} \xB7 ${e.status}`}
+                />
               </select>
             </label>
             <label>
               Stage
               <select
-    value={stageIndex}
-    onChange={(e) => {
-      onSetStageIndex(Number(e.target.value));
-      onSetForm((v) => ({
-        ...v,
-        sectionId: "",
-        passageGroupId: ""
-      }));
-    }}
-  >
-                {exam?.stages.map((s, i) => <option value={i} key={s.id ?? i}>
+                value={stageIndex}
+                onChange={(e) => {
+                  onSetStageIndex(Number(e.target.value));
+                  onSetForm((v) => ({
+                    ...v,
+                    sectionId: "",
+                    passageGroupId: "",
+                  }));
+                }}
+              >
+                {exam?.stages.map((s, i) => (
+                  <option value={i} key={s.id ?? i}>
                     {s.name}
-                  </option>)}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
@@ -251,7 +256,7 @@ function QuestionBankView({
                     sectionId: e.target.value,
                     topicName: "",
                     subtopicName: "",
-                    passageGroupId: ""
+                    passageGroupId: "",
                   });
                   setIsCustomTopic(false);
                   setIsCustomSubtopic(false);
@@ -266,7 +271,24 @@ function QuestionBankView({
               </select>
             </label>
 
-            {!isCustomTopic && syllabusTopics.length > 0 ? (
+            {/* Topic Selection: Always a Dropdown from Banking Syllabus */}
+            {!selectedSection ? (
+              <label>
+                Topic
+                <select
+                  value=""
+                  disabled
+                  style={{
+                    background: "var(--bg-muted, #f8fafc)",
+                    cursor: "not-allowed",
+                    opacity: 0.8,
+                  }}
+                  title="Choose a section first to view topics"
+                >
+                  <option value="">← Choose a section first</option>
+                </select>
+              </label>
+            ) : !isCustomTopic ? (
               <label>
                 Topic
                 <select
@@ -274,8 +296,8 @@ function QuestionBankView({
                     syllabusTopics.some((t) => t.name === form.topicName)
                       ? form.topicName
                       : form.topicName
-                      ? "__custom__"
-                      : ""
+                        ? "__custom__"
+                        : ""
                   }
                   onChange={(e) => {
                     if (e.target.value === "__custom__") {
@@ -284,39 +306,55 @@ function QuestionBankView({
                       onSetForm({
                         ...form,
                         topicName: e.target.value,
-                        subtopicName: ""
+                        subtopicName: "",
                       });
                       setIsCustomSubtopic(false);
                     }
                   }}
                 >
-                  <option value="">Choose syllabus topic ({syllabusTopics.length})</option>
-                  {syllabusTopics.map((t) => (
-                    <option key={t.name} value={t.name}>
-                      {t.name} {t.subtopics && t.subtopics.length ? `(${t.subtopics.length} subtopics)` : ""}
-                    </option>
-                  ))}
+                  <option value="">
+                    {syllabusTopics.length > 0
+                      ? `Choose syllabus topic (${syllabusTopics.length} available)`
+                      : "Choose topic"}
+                  </option>
+                  {syllabusTopics.length > 0
+                    ? syllabusTopics.map((t) => (
+                        <option key={t.name} value={t.name}>
+                          {t.name}{" "}
+                          {t.subtopics && t.subtopics.length
+                            ? `(${t.subtopics.length} subtopics)`
+                            : ""}
+                        </option>
+                      ))
+                    : // Fallback for custom section: list all syllabus topics grouped by subject
+                      BANKING_SYLLABUS.map((subj) => (
+                        <optgroup key={subj.id} label={subj.shortName}>
+                          {subj.topics.map((t) => (
+                            <option key={t.name} value={t.name}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                   <option value="__custom__">+ Custom topic...</option>
                 </select>
               </label>
             ) : (
               <div>
                 <Field
-                  label={syllabusTopics.length > 0 ? "Topic (Custom)" : "Topic"}
+                  label="Topic (Custom)"
                   value={form.topicName}
-                  placeholder={syllabusTopics.length > 0 ? "Enter custom topic" : "e.g. Syllogism"}
+                  placeholder="Enter custom topic"
                   onChange={(v) => onSetForm({ ...form, topicName: v })}
                 />
-                {syllabusTopics.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-link"
-                    style={{ fontSize: "12px", marginTop: "4px" }}
-                    onClick={() => setIsCustomTopic(false)}
-                  >
-                    ← Choose from syllabus
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="text-link"
+                  style={{ fontSize: "12px", marginTop: "4px" }}
+                  onClick={() => setIsCustomTopic(false)}
+                >
+                  ← Choose from syllabus
+                </button>
               </div>
             )}
 
@@ -328,8 +366,8 @@ function QuestionBankView({
                     availableSubtopics.includes(form.subtopicName)
                       ? form.subtopicName
                       : form.subtopicName
-                      ? "__custom__"
-                      : ""
+                        ? "__custom__"
+                        : ""
                   }
                   onChange={(e) => {
                     if (e.target.value === "__custom__") {
@@ -351,7 +389,11 @@ function QuestionBankView({
             ) : form.topicName ? (
               <div>
                 <Field
-                  label={availableSubtopics.length > 0 ? "Subtopic (Custom)" : "Subtopic (optional)"}
+                  label={
+                    availableSubtopics.length > 0
+                      ? "Subtopic (Custom)"
+                      : "Subtopic (optional)"
+                  }
                   value={form.subtopicName || ""}
                   placeholder="e.g. Table DI"
                   onChange={(v) => onSetForm({ ...form, subtopicName: v })}
@@ -371,9 +413,11 @@ function QuestionBankView({
             <label>
               Difficulty
               <select
-    value={form.difficulty}
-    onChange={(e) => onSetForm({ ...form, difficulty: e.target.value })}
-  >
+                value={form.difficulty}
+                onChange={(e) =>
+                  onSetForm({ ...form, difficulty: e.target.value })
+                }
+              >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
@@ -382,17 +426,25 @@ function QuestionBankView({
             <label>
               Question type
               <select
-    value={form.questionType}
-    onChange={(e) => {
-      const questionType = e.target.value;
-      onSetForm({
-        ...form,
-        questionType,
-        options: questionType === "descriptive" ? [] : form.options.length ? form.options : ["", "", "", ""],
-        correctAnswer: questionType === "descriptive" ? "" : form.correctAnswer || "A"
-      });
-    }}
-  >
+                value={form.questionType}
+                onChange={(e) => {
+                  const questionType = e.target.value;
+                  onSetForm({
+                    ...form,
+                    questionType,
+                    options:
+                      questionType === "descriptive"
+                        ? []
+                        : form.options.length
+                          ? form.options
+                          : ["", "", "", ""],
+                    correctAnswer:
+                      questionType === "descriptive"
+                        ? ""
+                        : form.correctAnswer || "A",
+                  });
+                }}
+              >
                 <option value="mcq">Multiple choice</option>
                 <option value="passage">Passage group</option>
                 <option value="image">Image based</option>
@@ -403,226 +455,285 @@ function QuestionBankView({
             <label>
               Language
               <select
-    value={form.language}
-    onChange={(e) => onSetForm({ ...form, language: e.target.value })}
-  >
+                value={form.language}
+                onChange={(e) =>
+                  onSetForm({ ...form, language: e.target.value })
+                }
+              >
                 <option>English</option>
                 <option>Hindi</option>
               </select>
             </label>
             <Field
-    label="Source year (optional)"
-    type="number"
-    value={form.sourceYear}
-    onChange={(v) => onSetForm({ ...form, sourceYear: v })}
-  />
+              label="Source year (optional)"
+              type="number"
+              value={form.sourceYear}
+              onChange={(v) => onSetForm({ ...form, sourceYear: v })}
+            />
             <Field
-    label="Source (optional)"
-    value={form.source}
-    onChange={(v) => onSetForm({ ...form, source: v })}
-  />
+              label="Source (optional)"
+              value={form.source}
+              onChange={(v) => onSetForm({ ...form, source: v })}
+            />
           </div>
 
-          {form.questionType === "passage" && <div className="passage-group-editor">
+          {form.questionType === "passage" && (
+            <div className="passage-group-editor">
               <label className="form-field">
                 Passage group
                 <select
-    value={form.passageGroupId}
-    onChange={(e) => onSetForm((v) => ({
-      ...v,
-      passageGroupId: e.target.value
-    }))}
-  >
+                  value={form.passageGroupId}
+                  onChange={(e) =>
+                    onSetForm((v) => ({
+                      ...v,
+                      passageGroupId: e.target.value,
+                    }))
+                  }
+                >
                   <option value="">Choose a passage group</option>
-                  {passageGroups.map((group) => <option key={group.id} value={group.id}>
+                  {passageGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
                       {group.title} · {group.language}
-                    </option>)}
+                    </option>
+                  ))}
                 </select>
               </label>
               {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ) && <article className="passage-excerpt">
+                (group) => group.id === form.passageGroupId,
+              ) && (
+                <article className="passage-excerpt">
                   <strong>
-                    {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ).title}
+                    {
+                      passageGroups.find(
+                        (group) => group.id === form.passageGroupId,
+                      ).title
+                    }
                   </strong>
                   <p>
-                    {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ).passage_text}
+                    {
+                      passageGroups.find(
+                        (group) => group.id === form.passageGroupId,
+                      ).passage_text
+                    }
                   </p>
                   {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ).image_url && <img
-    src={passageGroups.find(
-      (group) => group.id === form.passageGroupId
-    ).image_url}
-    alt="Passage illustration"
-  />}
-                </article>}
+                    (group) => group.id === form.passageGroupId,
+                  ).image_url && (
+                    <img
+                      src={
+                        passageGroups.find(
+                          (group) => group.id === form.passageGroupId,
+                        ).image_url
+                      }
+                      alt="Passage illustration"
+                    />
+                  )}
+                </article>
+              )}
               <button
-    type="button"
-    className="outline-btn admin-action"
-    onClick={() => onSetShowNewPassage((value) => !value)}
-  >
+                type="button"
+                className="outline-btn admin-action"
+                onClick={() => onSetShowNewPassage((value) => !value)}
+              >
                 {showNewPassage ? "Cancel new passage" : "Create passage group"}
               </button>
-              {showNewPassage && <div className="passage-create-form">
+              {showNewPassage && (
+                <div className="passage-create-form">
                   <Field
-    label="Passage title"
-    value={newPassage.title}
-    onChange={(v) => onSetNewPassage((old) => ({ ...old, title: v }))}
-  />
+                    label="Passage title"
+                    value={newPassage.title}
+                    onChange={(v) =>
+                      onSetNewPassage((old) => ({ ...old, title: v }))
+                    }
+                  />
                   <Field
-    label="Language"
-    value={newPassage.language}
-    onChange={(v) => onSetNewPassage((old) => ({ ...old, language: v }))}
-  />
+                    label="Language"
+                    value={newPassage.language}
+                    onChange={(v) =>
+                      onSetNewPassage((old) => ({ ...old, language: v }))
+                    }
+                  />
                   <Field
-    label="Passage image URL (optional, HTTPS)"
-    value={newPassage.imageUrl}
-    placeholder="https://..."
-    onChange={(v) => onSetNewPassage((old) => ({ ...old, imageUrl: v }))}
-  />
+                    label="Passage image URL (optional, HTTPS)"
+                    value={newPassage.imageUrl}
+                    placeholder="https://..."
+                    onChange={(v) =>
+                      onSetNewPassage((old) => ({ ...old, imageUrl: v }))
+                    }
+                  />
                   <label className="form-field">
                     Shared passage text
                     <textarea
-    rows={6}
-    value={newPassage.text}
-    onChange={(e) => onSetNewPassage((old) => ({
-      ...old,
-      text: e.target.value
-    }))}
-  />
+                      rows={6}
+                      value={newPassage.text}
+                      onChange={(e) =>
+                        onSetNewPassage((old) => ({
+                          ...old,
+                          text: e.target.value,
+                        }))
+                      }
+                    />
                   </label>
                   <button
-    type="button"
-    className="primary-btn"
-    disabled={busy}
-    onClick={onCreatePassageGroup}
-  >
+                    type="button"
+                    className="primary-btn"
+                    disabled={busy}
+                    onClick={onCreatePassageGroup}
+                  >
                     Save passage group
                   </button>
-                </div>}
-            </div>}
+                </div>
+              )}
+            </div>
+          )}
 
-          {form.questionType === "image" && <Field
-    label="Image URL (HTTPS)"
-    value={form.imageUrl}
-    placeholder="https://..."
-    onChange={(v) => onSetForm({ ...form, imageUrl: v })}
-  />}
+          {form.questionType === "image" && (
+            <Field
+              label="Image URL (HTTPS)"
+              value={form.imageUrl}
+              placeholder="https://..."
+              onChange={(v) => onSetForm({ ...form, imageUrl: v })}
+            />
+          )}
 
           <label className="form-field">
             Question text
             <textarea
-    rows={4}
-    value={form.questionText}
-    onChange={(e) => onSetForm({ ...form, questionText: e.target.value })}
-    placeholder="Enter the question text."
-  />
+              rows={4}
+              value={form.questionText}
+              onChange={(e) =>
+                onSetForm({ ...form, questionText: e.target.value })
+              }
+              placeholder="Enter the question text."
+            />
           </label>
 
-          {form.questionType !== "descriptive" && <div className="option-editor">
+          {form.questionType !== "descriptive" && (
+            <div className="option-editor">
               <div className="form-label">
                 Options — select the letter for the correct answer
               </div>
               {form.options.map((option, i) => {
-    const key = String.fromCharCode(65 + i);
-    return <div
-      className={`option-input ${form.correctAnswer === key ? "correct-option" : ""}`}
-      key={key}
-    >
+                const key = String.fromCharCode(65 + i);
+                return (
+                  <div
+                    className={`option-input ${form.correctAnswer === key ? "correct-option" : ""}`}
+                    key={key}
+                  >
                     <button
-      type="button"
-      onClick={() => onSetForm({ ...form, correctAnswer: key })}
-    >
+                      type="button"
+                      onClick={() => onSetForm({ ...form, correctAnswer: key })}
+                    >
                       {key}
                     </button>
                     <input
-      value={option}
-      onChange={(e) => onSetForm({
-        ...form,
-        options: form.options.map(
-          (v, index) => index === i ? e.target.value : v
-        )
-      })}
-      placeholder={`Option ${key}`}
-    />
+                      value={option}
+                      onChange={(e) =>
+                        onSetForm({
+                          ...form,
+                          options: form.options.map((v, index) =>
+                            index === i ? e.target.value : v,
+                          ),
+                        })
+                      }
+                      placeholder={`Option ${key}`}
+                    />
                     {form.correctAnswer === key && <Check size={15} />}
-                  </div>;
-  })}
-            </div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <label className="form-field">
-            {form.questionType === "descriptive" ? "Grading rubric / evaluation guidance" : "Answer explanation"}
+            {form.questionType === "descriptive"
+              ? "Grading rubric / evaluation guidance"
+              : "Answer explanation"}
             <textarea
-    rows={3}
-    value={form.explanation}
-    onChange={(e) => onSetForm({ ...form, explanation: e.target.value })}
-    placeholder="Explain the solution for aspirants."
-  />
+              rows={3}
+              value={form.explanation}
+              onChange={(e) =>
+                onSetForm({ ...form, explanation: e.target.value })
+              }
+              placeholder="Explain the solution for aspirants."
+            />
           </label>
 
           <div className="config-fields scoring-fields">
             <Field
-    label="Marks"
-    type="number"
-    value={form.marks}
-    onChange={(v) => onSetForm({ ...form, marks: v })}
-  />
+              label="Marks"
+              type="number"
+              value={form.marks}
+              onChange={(v) => onSetForm({ ...form, marks: v })}
+            />
             <Field
-    label="Negative marks"
-    type="number"
-    value={form.negativeMarks}
-    onChange={(v) => onSetForm({ ...form, negativeMarks: v })}
-  />
+              label="Negative marks"
+              type="number"
+              value={form.negativeMarks}
+              onChange={(v) => onSetForm({ ...form, negativeMarks: v })}
+            />
           </div>
 
           <div className="question-preview-control">
             <button
-    className="outline-btn admin-action"
-    onClick={() => onSetPreview((v) => !v)}
-  >
+              className="outline-btn admin-action"
+              onClick={() => onSetPreview((v) => !v)}
+            >
               Preview question
             </button>
-            {preview && <div className="question-preview">
+            {preview && (
+              <div className="question-preview">
                 <span>
                   {exam?.name} · {stage?.name} · {form.topicName || "Topic"} ·{" "}
                   {form.difficulty}
                 </span>
-                {form.questionType === "passage" && passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ) && <div className="preview-passage">
+                {form.questionType === "passage" &&
+                  passageGroups.find(
+                    (group) => group.id === form.passageGroupId,
+                  ) && (
+                    <div className="preview-passage">
                       <strong>
-                        {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ).title}
+                        {
+                          passageGroups.find(
+                            (group) => group.id === form.passageGroupId,
+                          ).title
+                        }
                       </strong>
                       <p>
-                        {passageGroups.find(
-    (group) => group.id === form.passageGroupId
-  ).passage_text}
+                        {
+                          passageGroups.find(
+                            (group) => group.id === form.passageGroupId,
+                          ).passage_text
+                        }
                       </p>
-                    </div>}
+                    </div>
+                  )}
                 <p>
                   {form.questionText || "Question preview will appear here."}
                 </p>
-                {form.imageUrl && <img
-    src={form.imageUrl}
-    alt="Question illustration preview"
-  />}
-                {form.questionType === "descriptive" ? <div>
+                {form.imageUrl && (
+                  <img
+                    src={form.imageUrl}
+                    alt="Question illustration preview"
+                  />
+                )}
+                {form.questionType === "descriptive" ? (
+                  <div>
                     Descriptive written response · evaluated using the rubric
-                  </div> : <>
-                    {form.options.map((o, i) => <div key={i}>
+                  </div>
+                ) : (
+                  <>
+                    {form.options.map((o, i) => (
+                      <div key={i}>
                         {String.fromCharCode(65 + i)}. {o || "Option text"}
-                      </div>)}
+                      </div>
+                    ))}
                     <strong>Answer: {form.correctAnswer}</strong>
-                  </>}
+                  </>
+                )}
                 <p>{form.explanation}</p>
-              </div>}
+              </div>
+            )}
           </div>
 
           <div className="admin-footer question-submit">
@@ -632,17 +743,17 @@ function QuestionBankView({
             </span>
             <div>
               <button
-    className="outline-btn admin-action"
-    disabled={busy}
-    onClick={() => onSaveQuestion("draft")}
-  >
+                className="outline-btn admin-action"
+                disabled={busy}
+                onClick={() => onSaveQuestion("draft")}
+              >
                 Save draft
               </button>
               <button
-    className="primary-btn"
-    disabled={busy}
-    onClick={() => onSaveQuestion("published")}
-  >
+                className="primary-btn"
+                disabled={busy}
+                onClick={() => onSaveQuestion("published")}
+              >
                 <Check size={15} /> Publish question
               </button>
             </div>
@@ -658,9 +769,23 @@ function QuestionBankView({
                 <span className="question-count">{questions.length}</span>
               </h2>
             </div>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               {distinctTopics.length > 0 && (
-                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "13px",
+                  }}
+                >
                   <span style={{ color: "var(--text-muted)" }}>Topic:</span>
                   <select
                     value={topicFilter}
@@ -670,10 +795,12 @@ function QuestionBankView({
                       borderRadius: "6px",
                       border: "1px solid var(--border)",
                       fontSize: "13px",
-                      background: "var(--input-bg, #fff)"
+                      background: "var(--input-bg, #fff)",
                     }}
                   >
-                    <option value="">All topics ({distinctTopics.length})</option>
+                    <option value="">
+                      All topics ({distinctTopics.length})
+                    </option>
                     {distinctTopics.map((t) => (
                       <option key={t} value={t}>
                         {t}
@@ -693,48 +820,56 @@ function QuestionBankView({
             </div>
           </div>
 
-          {selectedQuestionIds.length > 0 && <div className="bulk-question-actions">
+          {selectedQuestionIds.length > 0 && (
+            <div className="bulk-question-actions">
               <strong>{selectedQuestionIds.length} selected</strong>
               <button
-    className="outline-btn admin-action"
-    disabled={busy}
-    onClick={() => void onBulkQuestionStatus("draft")}
-  >
+                className="outline-btn admin-action"
+                disabled={busy}
+                onClick={() => void onBulkQuestionStatus("draft")}
+              >
                 Return to drafts
               </button>
               <button
-    className="primary-btn"
-    disabled={busy}
-    onClick={() => void onBulkQuestionStatus("published")}
-  >
+                className="primary-btn"
+                disabled={busy}
+                onClick={() => void onBulkQuestionStatus("published")}
+              >
                 Publish selected
               </button>
               <button
-    className="outline-btn admin-action"
-    disabled={busy}
-    onClick={() => void onBulkQuestionStatus("archived")}
-  >
+                className="outline-btn admin-action"
+                disabled={busy}
+                onClick={() => void onBulkQuestionStatus("archived")}
+              >
                 Archive selected
               </button>
               <button
-    className="text-link"
-    onClick={() => onSetSelectedQuestionIds([])}
-  >
+                className="text-link"
+                onClick={() => onSetSelectedQuestionIds([])}
+              >
                 Clear selection
               </button>
-            </div>}
+            </div>
+          )}
 
-          {filteredQuestions.length ? <div className="saved-question-list">
-              {filteredQuestions.map((q) => <article className="saved-question" key={q.id}>
+          {filteredQuestions.length ? (
+            <div className="saved-question-list">
+              {filteredQuestions.map((q) => (
+                <article className="saved-question" key={q.id}>
                   <div className="saved-question-meta">
                     <label className="question-select">
                       <input
-    type="checkbox"
-    checked={selectedQuestionIds.includes(q.id)}
-    onChange={(e) => onSetSelectedQuestionIds(
-      (old) => e.target.checked ? [...old, q.id] : old.filter((id) => id !== q.id)
-    )}
-  />
+                        type="checkbox"
+                        checked={selectedQuestionIds.includes(q.id)}
+                        onChange={(e) =>
+                          onSetSelectedQuestionIds((old) =>
+                            e.target.checked
+                              ? [...old, q.id]
+                              : old.filter((id) => id !== q.id),
+                          )
+                        }
+                      />
                       <span>Select</span>
                     </label>
                     <span>{q.exam_name}</span>
@@ -743,14 +878,16 @@ function QuestionBankView({
                     </span>
                     <span>{q.topic_name}</span>
                     {q.subtopic_name && (
-                      <span style={{
-                        padding: "2px 7px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        borderRadius: "4px",
-                        backgroundColor: "var(--lavender-100, #ede9fe)",
-                        color: "var(--lavender-900, #5b21b6)"
-                      }}>
+                      <span
+                        style={{
+                          padding: "2px 7px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          borderRadius: "4px",
+                          backgroundColor: "var(--lavender-100, #ede9fe)",
+                          color: "var(--lavender-900, #5b21b6)",
+                        }}
+                      >
                         {q.subtopic_name}
                       </span>
                     )}
@@ -760,12 +897,14 @@ function QuestionBankView({
                     </b>
                   </div>
                   <p>{q.question_text}</p>
-                  {q.image_url && <img
-    className="saved-question-image"
-    src={q.image_url}
-    alt="Question illustration"
-    loading="lazy"
-  />}
+                  {q.image_url && (
+                    <img
+                      className="saved-question-image"
+                      src={q.image_url}
+                      alt="Question illustration"
+                      loading="lazy"
+                    />
+                  )}
                   <div className="saved-question-bottom">
                     <span>
                       {q.difficulty} · {q.marks} marks · −{q.negative_marks} ·{" "}
@@ -773,40 +912,43 @@ function QuestionBankView({
                     </span>
                     <div>
                       <button
-    className="icon-btn"
-    aria-label="Edit question"
-    onClick={() => onEditQuestion(q)}
-  >
+                        className="icon-btn"
+                        aria-label="Edit question"
+                        onClick={() => onEditQuestion(q)}
+                      >
                         <Save size={14} />
                       </button>
                       <button
-    className="icon-btn"
-    aria-label="Duplicate question"
-    onClick={() => onDuplicateQuestion(q)}
-  >
+                        className="icon-btn"
+                        aria-label="Duplicate question"
+                        onClick={() => onDuplicateQuestion(q)}
+                      >
                         <Copy size={14} />
                       </button>
                       <button
-    className="icon-btn"
-    aria-label="Archive question"
-    onClick={() => onRemoveQuestion(q.id)}
-  >
+                        className="icon-btn"
+                        aria-label="Archive question"
+                        onClick={() => onRemoveQuestion(q.id)}
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                </article>)}
-            </div> : <div className="empty-questions">
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-questions">
               <div>
                 <FileQuestion size={22} />
               </div>
               <strong>No questions yet</strong>
               <span>Enter a question or validate a CSV/XLSX import.</span>
-            </div>}
+            </div>
+          )}
         </section>
       </div>
-    </>;
+    </>
+  );
 }
-export {
-  QuestionBankView
-};
+export { QuestionBankView };

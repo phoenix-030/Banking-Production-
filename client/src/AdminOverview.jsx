@@ -1,3 +1,14 @@
+// ============================================================================
+// ADMIN OVERVIEW & MODULE ROUTER COMPONENT
+// ============================================================================
+// Orchestrates all administrative sub-panels and state hydration:
+// - "Admin dashboard": System overview metrics, question counts, mock test KPIs
+// - "Role management": User account governance, promotions, demotions, suspensions
+// - "Mock tests": Rule-based and manual mock test authoring, scheduling, blueprints
+// - "Reports": Aspirant test attempts, score analytics, descriptive question evaluations
+// - "Activity Logs": Security and audit trail of administrative modifications
+// ============================================================================
+
 import { useEffect, useState } from "react";
 import { AdminDashboardOverview } from "./components/admin/AdminDashboardOverview";
 import { StudentManagementView } from "./components/admin/StudentManagementView";
@@ -6,6 +17,10 @@ import { MockTestBuilderView } from "./components/admin/MockTestBuilderView";
 import { CurrentAffairsView } from "./components/admin/CurrentAffairsView";
 import { AttemptReportsView } from "./components/admin/AttemptReportsView";
 import { AuditLogsView } from "./components/admin/AuditLogsView";
+
+/**
+ * Universal JSON API client with credentials and standardized error extraction
+ */
 const api = async (path, init) => {
   const r = await fetch(`/api${path}`, {
     credentials: "include",
@@ -16,6 +31,10 @@ const api = async (path, init) => {
   if (!r.ok) throw new Error(d?.error ?? "Request failed.");
   return d;
 };
+
+/**
+ * Helper to convert ISO dates to HTML datetime-local format
+ */
 function toLocalDateTimeInput(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -23,12 +42,20 @@ function toLocalDateTimeInput(value) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/**
+ * Helper to convert HTML datetime string to ISO or null
+ */
 function toIsoOrNull(value) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString();
 }
+
+/**
+ * Build default difficulty distribution rules (30% Easy, 50% Medium, 20% Hard)
+ */
 function buildDefaultRules(selectedStage) {
   return (selectedStage?.sections ?? []).map((sec) => ({
     sectionId: sec.id,
@@ -38,6 +65,10 @@ function buildDefaultRules(selectedStage) {
     hardPercent: 20
   }));
 }
+
+/**
+ * AdminOverview - Section Router & Controller
+ */
 function AdminOverview({
   section,
   onNavigate,

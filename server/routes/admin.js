@@ -243,9 +243,20 @@ adminRouter.get("/overview", async (_req, res) => {
     activity: activity.rows
   });
 });
+// ============================================================================
+// 1. BANKING SYLLABUS DIRECTORY ENDPOINT
+// ============================================================================
+// Returns the full 6-subject canonical banking syllabus hierarchy
 adminRouter.get("/syllabus", (_req, res) => {
   res.json({ syllabus: BANKING_SYLLABUS });
 });
+
+// ============================================================================
+// 2. USER & ROLE GOVERNANCE ENDPOINTS
+// ============================================================================
+// GET /api/admin/users
+// Supports searching by name/email/mobile, filtering by role and active status,
+// and returns overall platform summary metrics (total, admins, students, active, disabled)
 adminRouter.get("/users", async (req, res) => {
   const search = String(req.query.search ?? "").trim();
   const roleFilter = String(req.query.role ?? "all").toLowerCase();
@@ -285,6 +296,7 @@ adminRouter.get("/users", async (req, res) => {
 
   const rows = await pool.query(sql, params);
 
+  // Aggregate user statistics for the top KPI row
   const summary = await pool.query(`
     SELECT
       count(*)::int total_users,
@@ -302,6 +314,9 @@ adminRouter.get("/users", async (req, res) => {
   });
 });
 
+// PATCH /api/admin/users/:id/role
+// Promotes or demotes an account between 'student' and 'admin'.
+// Includes a critical safeguard: Admins cannot demote their own account to prevent system lockout.
 adminRouter.patch("/users/:id/role", async (req, res) => {
   const input = validate(
     z.object({
@@ -310,6 +325,7 @@ adminRouter.patch("/users/:id/role", async (req, res) => {
     req.body
   );
 
+  // Guard against self-demotion lockout
   if (req.params.id === req.session.userId && input.role !== "admin") {
     return res.status(400).json({
       error: "You cannot change or demote your own administrator role."
@@ -336,6 +352,7 @@ adminRouter.patch("/users/:id/role", async (req, res) => {
       [req.params.id, input.role]
     );
 
+    // Audit log records who changed whose role and when
     await client.query(
       `INSERT INTO audit_logs
         (actor_id, action, entity_type, entity_id, details, ip_address)
@@ -365,6 +382,9 @@ adminRouter.patch("/users/:id/role", async (req, res) => {
   }
 });
 
+// PATCH /api/admin/users/:id/status
+// Suspends or enables login privileges for a user account.
+// Includes a critical safeguard: Admins cannot disable their own account.
 adminRouter.patch("/users/:id/status", async (req, res) => {
   const input = validate(
     z.object({
@@ -373,6 +393,7 @@ adminRouter.patch("/users/:id/status", async (req, res) => {
     req.body
   );
 
+  // Guard against self-disable lockout
   if (req.params.id === req.session.userId && !input.isActive) {
     return res.status(400).json({
       error: "You cannot disable your own administrator account."

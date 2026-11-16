@@ -1,3 +1,14 @@
+// ============================================================================
+// ROLE MANAGEMENT & USER GOVERNANCE VIEW (Admin Access Control)
+// ============================================================================
+// This component provides administrators with platform-wide user governance:
+// - Summary KPI metrics (Total accounts, Administrators, Students, Active vs Disabled)
+// - Real-time account searching by name, email, or mobile number
+// - Filtering by Role (Administrator vs Student) and Account Status (Active vs Disabled)
+// - One-click Role Promotion/Demotion with confirmation dialogs and self-demote safety checks
+// - Account suspension/activation toggling with self-disable protection
+// ============================================================================
+
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +23,22 @@ import {
   UserX
 } from "lucide-react";
 
+/**
+ * RoleManagementView Component
+ *
+ * @param {Array} users - Filtered list of registered user objects from /api/admin/users
+ * @param {Object} summary - Aggregate stats: total_users, total_admins, total_students, total_active, total_disabled
+ * @param {string} currentUserId - The authenticated admin's ID (used for self-protection guardrails)
+ * @param {string} search - Current search query string
+ * @param {string} roleFilter - Active role filter ('all' | 'admin' | 'student')
+ * @param {string} statusFilter - Active status filter ('all' | 'active' | 'disabled')
+ * @param {boolean} busy - Network request in-flight indicator
+ * @param {Function} onSearchChange - Callback when search input changes
+ * @param {Function} onRoleFilterChange - Callback when role filter changes
+ * @param {Function} onStatusFilterChange - Callback when status filter changes
+ * @param {Function} onUpdateRole - (userId, newRole) => Promise
+ * @param {Function} onUpdateStatus - (userId, newStatus) => Promise
+ */
 function RoleManagementView({
   users,
   summary,
@@ -28,8 +55,11 @@ function RoleManagementView({
 }) {
   return (
     <div className="role-management-view" style={{ display: "grid", gap: "20px" }}>
-      {/* 1. Header & Quick Summary KPIs */}
+      {/* -------------------------------------------------------------------- */}
+      {/* 1. Header & Quick Summary KPI Cards                                  */}
+      {/* -------------------------------------------------------------------- */}
       <div className="stats-grid admin-stats" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+        {/* KPI 1: Total Registered Accounts */}
         <div className="stat-card">
           <span className="stat-icon blue">
             <Users size={17} />
@@ -41,6 +71,7 @@ function RoleManagementView({
           </small>
         </div>
 
+        {/* KPI 2: Total Administrators */}
         <div className="stat-card">
           <span className="stat-icon lavender">
             <ShieldCheck size={17} />
@@ -52,6 +83,7 @@ function RoleManagementView({
           </small>
         </div>
 
+        {/* KPI 3: Total Students */}
         <div className="stat-card">
           <span className="stat-icon emerald">
             <GraduationCap size={17} />
@@ -63,6 +95,7 @@ function RoleManagementView({
           </small>
         </div>
 
+        {/* KPI 4: Active Login Accounts */}
         <div className="stat-card">
           <span className="stat-icon emerald">
             <UserCheck size={17} />
@@ -74,6 +107,7 @@ function RoleManagementView({
           </small>
         </div>
 
+        {/* KPI 5: Suspended / Disabled Accounts */}
         <div className="stat-card">
           <span className="stat-icon amber">
             <UserX size={17} />
@@ -86,7 +120,9 @@ function RoleManagementView({
         </div>
       </div>
 
-      {/* 2. Role Governance Explainer Card */}
+      {/* -------------------------------------------------------------------- */}
+      {/* 2. Role Governance Information Banner                                */}
+      {/* -------------------------------------------------------------------- */}
       <div className="panel admin-panel" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #e2e8f0" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
           <span style={{ background: "#ede9fe", color: "#6366f1", padding: "8px", borderRadius: "8px", display: "inline-flex" }}>
@@ -104,7 +140,9 @@ function RoleManagementView({
         </div>
       </div>
 
-      {/* 3. Main Role Management Table Panel */}
+      {/* -------------------------------------------------------------------- */}
+      {/* 3. Main Role Management Table & Search / Filter Controls             */}
+      {/* -------------------------------------------------------------------- */}
       <section className="panel admin-panel">
         <div className="admin-panel-heading" style={{ flexWrap: "wrap", gap: "12px" }}>
           <div>
@@ -114,8 +152,9 @@ function RoleManagementView({
             </h2>
           </div>
 
+          {/* Search and Filter Toolbar */}
           <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            {/* Filter by Role */}
+            {/* Filter by Role: All, Administrator, or Student */}
             <select
               value={roleFilter}
               onChange={(e) => onRoleFilterChange(e.target.value)}
@@ -132,7 +171,7 @@ function RoleManagementView({
               <option value="student">Students only</option>
             </select>
 
-            {/* Filter by Status */}
+            {/* Filter by Account Status: All, Active, or Disabled */}
             <select
               value={statusFilter}
               onChange={(e) => onStatusFilterChange(e.target.value)}
@@ -149,7 +188,7 @@ function RoleManagementView({
               <option value="disabled">Disabled accounts</option>
             </select>
 
-            {/* Search Input */}
+            {/* Instant Search Bar */}
             <div style={{ position: "relative" }}>
               <input
                 className="admin-search"
@@ -172,6 +211,7 @@ function RoleManagementView({
           </div>
         </div>
 
+        {/* Users Table */}
         <div className="section-table-wrap" style={{ marginTop: "12px" }}>
           <table className="section-table">
             <thead>
@@ -188,11 +228,13 @@ function RoleManagementView({
             </thead>
             <tbody>
               {users.map((u) => {
+                // Safeguards: Prevent an administrator from accidentally demoting or locking themselves out
                 const isSelf = u.id === currentUserId;
                 const isAdmin = u.role === "admin";
 
                 return (
                   <tr key={u.id} style={{ background: isSelf ? "rgba(99, 102, 241, 0.03)" : undefined }}>
+                    {/* Column 1: User Avatar, Name, Mobile, and "You" Badge */}
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span
@@ -237,10 +279,13 @@ function RoleManagementView({
                       </div>
                     </td>
 
+                    {/* Column 2: Email Address */}
                     <td style={{ fontSize: "13px" }}>{u.email}</td>
 
+                    {/* Column 3: Target Exam Choice */}
                     <td style={{ fontSize: "13px" }}>{u.target_exam ?? "—"}</td>
 
+                    {/* Column 4: Role Badge */}
                     <td>
                       <span
                         style={{
@@ -260,6 +305,7 @@ function RoleManagementView({
                       </span>
                     </td>
 
+                    {/* Column 5: Status Badge (Active / Disabled) */}
                     <td>
                       <span
                         style={{
@@ -279,10 +325,12 @@ function RoleManagementView({
                       </span>
                     </td>
 
+                    {/* Column 6: Date Joined */}
                     <td style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
 
+                    {/* Column 7: Interactive Role Selector (Promote / Demote) */}
                     <td>
                       {isSelf ? (
                         <span style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>
@@ -320,6 +368,7 @@ function RoleManagementView({
                       )}
                     </td>
 
+                    {/* Column 8: Account Status Toggle (Enable / Disable) */}
                     <td>
                       {isSelf ? (
                         <span style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>
@@ -353,6 +402,7 @@ function RoleManagementView({
           </table>
         </div>
 
+        {/* Empty Search State */}
         {!users.length && !busy && (
           <div className="empty-questions" style={{ padding: "30px", textAlign: "center" }}>
             No accounts match your search or filter criteria.

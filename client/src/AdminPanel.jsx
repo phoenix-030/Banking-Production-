@@ -1,9 +1,21 @@
+// ============================================================================
+// ADMIN PANEL CONTAINER (Exam Pattern Configuration & Question Authoring)
+// ============================================================================
+// Houses two core content authoring modules:
+// 1. "Exam setup": Structure exams, stages (Prelims/Mains), sections, negative marks, and sectional timing
+// 2. "Question bank": Manual question authoring, CSV/Excel bulk import, and banking syllabus topic hierarchy
+// ============================================================================
+
 import { useEffect, useState } from "react";
 import { BookOpen } from "lucide-react";
 import { ExamSetupView } from "./components/admin/ExamSetupView";
 import {
   QuestionBankView
 } from "./components/admin/QuestionBankView";
+
+/**
+ * Creates a template exam object for new exam authoring
+ */
 const defaultExam = (name, code) => ({
   id: "",
   name,
@@ -33,6 +45,10 @@ const defaultExam = (name, code) => ({
     }
   ]
 });
+
+/**
+ * Creates empty question form initial state
+ */
 const emptyForm = () => ({
   sectionId: "",
   topicName: "",
@@ -52,6 +68,10 @@ const emptyForm = () => ({
   sourceYear: "",
   status: "draft"
 });
+
+/**
+ * Universal JSON/FormData API fetch wrapper
+ */
 async function api(path, init) {
   const response = await fetch(`/api${path}`, {
     credentials: "include",
@@ -66,15 +86,24 @@ async function api(path, init) {
   if (!response.ok) throw new Error(data.error ?? "Request failed.");
   return data;
 }
+
+/**
+ * Helper to encode file array buffer to Base64
+ */
 function csvBase64(buffer) {
   let binary = "";
   for (const byte of new Uint8Array(buffer))
     binary += String.fromCharCode(byte);
   return btoa(binary);
 }
+
 function SettingsIcon() {
   return <span aria-hidden="true">⚙</span>;
 }
+
+/**
+ * AdminPanel Root View Component
+ */
 function AdminPanel({
   section,
   onToast,
