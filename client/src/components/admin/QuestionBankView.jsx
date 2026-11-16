@@ -217,9 +217,8 @@ function QuestionBankView({  exams,examIndex,stageIndex,questions,visibleQuestio
             <label>              Exam              <select    value={examIndex}              onChange={(e) => {
                   onSetExamIndex(Number(e.target.value));   onSetStageIndex(0);             onSetForm((v) => ({
                     ...v,                 sectionId: "",                 passageGroupId: "",
-                  }));                }}              >         
-                         <ExamOptGroups
-                  exams={exams}
+                  }));}}>         
+                         <ExamOptGroups             exams={exams}
                   getKey={(e) => e.id}
                   getValue={(_e, i) => i}
                   getLabel={(e) => `${e.name} \xB7 ${e.status}`}

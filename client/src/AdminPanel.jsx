@@ -107,7 +107,9 @@ function SettingsIcon() {
 function AdminPanel({
   section,
   onToast,
-  onNavigate
+  onNavigate,
+  onConfirmModal,
+  onAlert
 }) {
   const [exams, setExams] = useState([]);
   const [examIndex, setExamIndex] = useState(0);
@@ -459,8 +461,19 @@ function AdminPanel({
   }
   async function bulkQuestionStatus(status) {
     if (!selectedQuestionIds.length) return;
-    if (status === "archived" && !confirm(`Archive ${selectedQuestionIds.length} selected questions?`))
-      return;
+    if (status === "archived") {
+      if (onConfirmModal) {
+        const confirmed = await onConfirmModal({
+          title: `Archive ${selectedQuestionIds.length} Questions?`,
+          message: `Are you sure you want to archive ${selectedQuestionIds.length} selected questions? They will be removed from active mock tests.`,
+          confirmText: `Archive ${selectedQuestionIds.length} Questions`,
+          cancelText: "Cancel",
+          type: "danger",
+          icon: "trash"
+        });
+        if (!confirmed) return;
+      }
+    }
     setBusy(true);
     setError("");
     try {
@@ -481,14 +494,21 @@ function AdminPanel({
     }
   }
   async function removeQuestion(id) {
-    if (!confirm(
-      "Archive this question? It will no longer be available for new tests."
-    ))
-      return;
+    if (onConfirmModal) {
+      const confirmed = await onConfirmModal({
+        title: "Archive Question?",
+        message: "Are you sure you want to archive this question? It will no longer be available for student mock tests.",
+        confirmText: "Archive Question",
+        cancelText: "Cancel",
+        type: "danger",
+        icon: "trash"
+      });
+      if (!confirmed) return;
+    }
     try {
       await api(`/admin/questions/${id}`, { method: "DELETE" });
       await loadQuestions();
-      onToast("Question archived.");
+      onToast("Question archived successfully.", "success");
     } catch (e) {
       setError(e.message);
     }

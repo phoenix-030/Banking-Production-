@@ -51,7 +51,8 @@ function RoleManagementView({
   onRoleFilterChange,
   onStatusFilterChange,
   onUpdateRole,
-  onUpdateStatus
+  onUpdateStatus,
+  onConfirmModal
 }) {
   return (
     <div className="role-management-view" style={{ display: "grid", gap: "20px" }}>
@@ -340,10 +341,27 @@ function RoleManagementView({
                         <select
                           value={u.role}
                           disabled={busy}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const newRole = e.target.value;
                             if (newRole !== u.role) {
-                              onUpdateRole(u.id, newRole);
+                              if (onConfirmModal) {
+                                const isPromote = newRole === "admin";
+                                const confirmed = await onConfirmModal({
+                                  title: isPromote ? "Promote to Administrator?" : "Demote to Student?",
+                                  message: isPromote
+                                    ? `Are you sure you want to promote ${u.full_name || u.email} to Administrator? They will receive full administrative privileges.`
+                                    : `Are you sure you want to demote ${u.full_name || u.email} to Student? They will lose administrative access.`,
+                                  confirmText: isPromote ? "Promote to Admin" : "Demote to Student",
+                                  cancelText: "Cancel",
+                                  type: isPromote ? "primary" : "warning",
+                                  icon: isPromote ? "shield" : "user"
+                                });
+                                if (confirmed) {
+                                  onUpdateRole(u.id, newRole);
+                                }
+                              } else {
+                                onUpdateRole(u.id, newRole);
+                              }
                             }
                           }}
                           style={{
@@ -378,8 +396,25 @@ function RoleManagementView({
                             fontSize: "12px",
                             color: u.is_active ? "var(--danger, #dc2626)" : "var(--success, #16a34a)"
                           }}
-                          onClick={() => {
-                            onUpdateStatus(u.id, !u.is_active);
+                          onClick={async () => {
+                            if (onConfirmModal) {
+                              const isDisable = u.is_active;
+                              const confirmed = await onConfirmModal({
+                                title: isDisable ? "Disable Account?" : "Enable Account?",
+                                message: isDisable
+                                  ? `Are you sure you want to disable access for ${u.full_name || u.email}? They will not be able to log in until re-enabled.`
+                                  : `Enable login access for ${u.full_name || u.email}?`,
+                                confirmText: isDisable ? "Disable Account" : "Enable Account",
+                                cancelText: "Cancel",
+                                type: isDisable ? "danger" : "primary",
+                                icon: isDisable ? "trash" : "user"
+                              });
+                              if (confirmed) {
+                                onUpdateStatus(u.id, !u.is_active);
+                              }
+                            } else {
+                              onUpdateStatus(u.id, !u.is_active);
+                            }
                           }}
                         >
                           {u.is_active ? "Disable" : "Enable"}

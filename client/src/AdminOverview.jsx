@@ -72,7 +72,9 @@ function buildDefaultRules(selectedStage) {
 function AdminOverview({
   section,
   onNavigate,
-  onToast
+  onToast,
+  onAlert,
+  onConfirmModal
 }) {
   const [stats, setStats] = useState(null);
   const [activity, setActivity] = useState([]);
@@ -499,6 +501,7 @@ function AdminOverview({
           onStatusFilterChange={setStatusFilter}
           onUpdateRole={updateRole}
           onUpdateStatus={updateUserStatus}
+          onConfirmModal={onConfirmModal}
         />
       )}
 

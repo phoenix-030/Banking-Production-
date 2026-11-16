@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { ExamOptGroups } from "./utils/examCategories";
 import { subscribeCompanionTabLock } from "./utils/examLock";
+import { FeedbackProvider, useFeedback } from "./components/common/FeedbackSystem";
 import {
   Activity,
   AlertCircle,
@@ -64,9 +65,9 @@ const adminPages = [
 ];
 
 // ============================================================================
-// 3. MAIN APPLICATION ROOT COMPONENT
+// 3. MAIN APPLICATION ROOT SHELL
 // ============================================================================
-function App() {
+function AppShell() {
   // --------------------------------------------------------------------------
   // Core State Management
   // --------------------------------------------------------------------------
@@ -74,8 +75,10 @@ function App() {
   const [loading, setLoading] = useState(true);           // Initial session verification loader
   const [active, setActive] = useState("Overview");       // Currently active navigation tab
   const [menuOpen, setMenuOpen] = useState(false);        // Mobile responsive sidebar toggle
-  const [toasts, setToasts] = useState([]);               // Floating toast notifications stack
   const [lockedOutInfo, setLockedOutInfo] = useState(null); // Proctoring lockdown for duplicate browser tabs
+
+  // Unified Feedback Engine (Toast, Alert, ConfirmModal)
+  const { toast, alert, confirm } = useFeedback();
 
   // --------------------------------------------------------------------------
   // Security: Single-Tab Lockdown Subscription (BroadcastChannel)
@@ -94,11 +97,10 @@ function App() {
   }, []);
 
   // --------------------------------------------------------------------------
-  // Universal Toast Dispatcher: Displays Success, Error, Info, or Warning Toasts
+  // Universal Toast Dispatcher: Maps to Feedback Engine Toast Tiers
   // --------------------------------------------------------------------------
   function flash(message, type = "success") {
     if (!message) return;
-    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const text =
       typeof message === "object"
         ? message.message || message.error || JSON.stringify(message)
@@ -106,18 +108,10 @@ function App() {
     const toastType =
       typeof message === "object" && message.type ? message.type : type;
 
-    // Keep up to 3 most recent notifications visible concurrently
-    setToasts((prev) => [...prev.slice(-3), { id, text, type: toastType }]);
-
-    // Auto-dismiss after 4.5 seconds
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
-  }
-
-  // Dismiss a specific toast notification manually
-  function removeToast(id) {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    if (toastType === "error") toast.error(text);
+    else if (toastType === "warning") toast.warning(text);
+    else if (toastType === "info") toast.info(text);
+    else toast.success(text);
   }
 
   // --------------------------------------------------------------------------
@@ -130,7 +124,7 @@ function App() {
     }).catch(() => void 0);
     setUser(null);
     setActive("Overview");
-    flash("You have been signed out successfully.", "info");
+    toast.info("You have been signed out successfully.");
   }
 
   // --------------------------------------------------------------------------
@@ -302,17 +296,19 @@ function App() {
           </div>
 
           <div className="top-actions">
+            {/* Alert demonstration on Bell click */}
             <button
               className="icon-btn notification-btn"
-              onClick={() => flash("You are all caught up.", "info")}
+              onClick={() => alert.warning("Banking Exam Update", "2026 examination syllabus and pattern models are fully synchronized.")}
               aria-label="Notifications"
             >
               <Bell size={18} />
             </button>
             <div className="top-divider" />
+            {/* Toast demonstration on Help click */}
             <button
               className="help-btn"
-              onClick={() => flash("Help center will be available soon.", "info")}
+              onClick={() => toast.info("Need help? Open the Banking Preparation Guide in your dashboard.")}
             >
               <CircleHelp size={17} /> Help
             </button>
@@ -328,12 +324,16 @@ function App() {
               <AdminPanel
                 section="Exam setup"
                 onToast={flash}
+                onAlert={alert.show}
+                onConfirmModal={confirm}
                 onNavigate={setActive}
               />
             ) : user.role === "admin" && active === "Question bank" ? (
               <AdminPanel
                 section="Question bank"
                 onToast={flash}
+                onAlert={alert.show}
+                onConfirmModal={confirm}
                 onNavigate={setActive}
               />
             ) : user.role === "admin" ? (
@@ -341,6 +341,8 @@ function App() {
                 section={active}
                 onNavigate={setActive}
                 onToast={flash}
+                onAlert={alert.show}
+                onConfirmModal={confirm}
               />
             ) : (
               <StudentWorkspace
@@ -348,55 +350,25 @@ function App() {
                 user={user}
                 onNavigate={setActive}
                 onToast={flash}
+                onAlert={alert.show}
+                onConfirmModal={confirm}
               />
             )}
           </Suspense>
         </div>
       </main>
-
-      {/* -------------------------------------------------------------------- */}
-      {/* GLOBAL TOAST NOTIFICATION CONTAINER                                  */}
-      {/* -------------------------------------------------------------------- */}
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }
 
 // ============================================================================
-// 4. FLOATING TOAST NOTIFICATION COMPONENT
+// 4. MAIN APPLICATION ROOT WRAPPER (With Unified Feedback Provider)
 // ============================================================================
-// Renders animated floating messages for success, error, warning, and info
-function ToastContainer({ toasts, onDismiss }) {
-  if (!toasts.length) return null;
+export default function App() {
   return (
-    <div className="toast-container" role="status" aria-live="polite">
-      {toasts.map((t) => (
-        <div key={t.id} className={`toast toast-${t.type}`}>
-          <div className="toast-content">
-            <span className="toast-icon">
-              {t.type === "error" ? (
-                <AlertCircle size={18} />
-              ) : t.type === "warning" ? (
-                <AlertTriangle size={18} />
-              ) : t.type === "info" ? (
-                <Info size={18} />
-              ) : (
-                <CheckCircle2 size={18} />
-              )}
-            </span>
-            <span>{t.text}</span>
-          </div>
-          <button
-            type="button"
-            className="toast-close-btn"
-            onClick={() => onDismiss(t.id)}
-            aria-label="Dismiss notification"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ))}
-    </div>
+    <FeedbackProvider>
+      <AppShell />
+    </FeedbackProvider>
   );
 }
 
@@ -554,5 +526,3 @@ function SidebarStreak({ userId, onOpenAchievements }) {
     </button>
   );
 }
-
-export { App as default };
