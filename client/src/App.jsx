@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Target,
   Trophy,
+  UserCheck,
   X
 } from "lucide-react";
 const AdminPanel = lazy(() => import("./AdminPanel"));
@@ -42,6 +43,7 @@ const adminPages = [
   ["Exam setup", Settings],
   ["Question bank", BookOpen],
   ["Mock tests", Target],
+  ["Role management", UserCheck],
   ["Students", Activity],
   ["Current affairs", CalendarDays],
   ["Reports", ShieldCheck],

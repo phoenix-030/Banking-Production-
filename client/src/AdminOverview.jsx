@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminDashboardOverview } from "./components/admin/AdminDashboardOverview";
 import { StudentManagementView } from "./components/admin/StudentManagementView";
+import { RoleManagementView } from "./components/admin/RoleManagementView";
 import { MockTestBuilderView } from "./components/admin/MockTestBuilderView";
 import { CurrentAffairsView } from "./components/admin/CurrentAffairsView";
 import { AttemptReportsView } from "./components/admin/AttemptReportsView";
@@ -45,6 +46,11 @@ function AdminOverview({
   const [stats, setStats] = useState(null);
   const [activity, setActivity] = useState([]);
   const [students, setStudents] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [userSummary, setUserSummary] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [tests, setTests] = useState([]);
   const [exams, setExams] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -92,6 +98,12 @@ function AdminOverview({
         setStats(d.stats);
         setActivity(d.activity);
       });
+    } else if (section === "Role management") {
+      task = api(`/admin/users?search=${encodeURIComponent(search)}&role=${roleFilter}&status=${statusFilter}`).then((d) => {
+        setUsers(d.users ?? []);
+        setUserSummary(d.summary ?? null);
+        setCurrentUserId(d.currentUserId ?? "");
+      });
     } else if (section === "Students") {
       task = api(`/admin/students?search=${encodeURIComponent(search)}`).then(
         (d) => setStudents(d.students)
@@ -130,13 +142,51 @@ function AdminOverview({
           )
         );
       });
-    } else if (section === "Settings") {
+    } else if (section === "Settings" || section === "Activity Logs") {
       task = api("/admin/audit-logs").then((d) => setLogs(d.logs));
     } else {
       task = Promise.resolve();
     }
     task.catch((e) => setError(e.message)).finally(() => setBusy(false));
-  }, [section, search]);
+  }, [section, search, roleFilter, statusFilter]);
+
+  const updateRole = async (id, newRole) => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api(`/admin/users/${id}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: newRole })
+      });
+      onToast(res.message || `Role updated to ${newRole}.`);
+      const d = await api(`/admin/users?search=${encodeURIComponent(search)}&role=${roleFilter}&status=${statusFilter}`);
+      setUsers(d.users ?? []);
+      setUserSummary(d.summary ?? null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateUserStatus = async (id, newStatus) => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api(`/admin/users/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: newStatus })
+      });
+      onToast(res.message || `Account status updated.`);
+      const d = await api(`/admin/users?search=${encodeURIComponent(search)}&role=${roleFilter}&status=${statusFilter}`);
+      setUsers(d.users ?? []);
+      setUserSummary(d.summary ?? null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const updateStudent = async (id, input) => {
     try {
       await api(`/admin/students/${id}`, {
@@ -398,6 +448,23 @@ function AdminOverview({
     onNavigate={onNavigate}
   />}
 
+      {section === "Role management" && (
+        <RoleManagementView
+          users={users}
+          summary={userSummary}
+          currentUserId={currentUserId}
+          search={search}
+          roleFilter={roleFilter}
+          statusFilter={statusFilter}
+          busy={busy}
+          onSearchChange={setSearch}
+          onRoleFilterChange={setRoleFilter}
+          onStatusFilterChange={setStatusFilter}
+          onUpdateRole={updateRole}
+          onUpdateStatus={updateUserStatus}
+        />
+      )}
+
       {section === "Students" && <StudentManagementView
     students={students}
     search={search}
@@ -489,7 +556,7 @@ function AdminOverview({
     onGradeResponse={gradeResponse}
   />}
 
-      {section === "Settings" && <AuditLogsView logs={logs} />}
+      {(section === "Settings" || section === "Activity Logs") && <AuditLogsView logs={logs} />}
     </div>;
 }
 export {

@@ -54,6 +54,12 @@ npm run dev
 10. **Enhanced Admin Metrics & Topic Drilling**:
    - Admin dashboard displays Total Exams, Total Subjects, Total Topics, Total Questions (with Easy / Medium / Hard breakdown), Total Students, and Mock Tests Created.
    - Students can select both topics and subtopics for focused practice sessions.
+11. **Administrator Role & Access Management**:
+   - Dedicated "Role management" navigation view in the admin portal (`/admin/users`).
+   - Summary KPIs: Total Accounts, Administrators, Students, Active Accounts, Disabled Accounts.
+   - Interactive role filtering (`Admin`, `Student`), status filtering (`Active`, `Disabled`), and search.
+   - In-place role promotion/demotion (Student ↔ Administrator) and account activation controls.
+   - Built-in self-protection safeguards preventing accidental administrator self-lockout or self-demotion, backed by audit logging.
 
 ---
 

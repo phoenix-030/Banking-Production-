@@ -105,6 +105,7 @@ function AdminDashboardOverview({
             "Exam setup",
             "Question bank",
             "Mock tests",
+            "Role management",
             "Current affairs",
             "Students"
           ].map((page) => (

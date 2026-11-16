@@ -246,8 +246,183 @@ adminRouter.get("/overview", async (_req, res) => {
 adminRouter.get("/syllabus", (_req, res) => {
   res.json({ syllabus: BANKING_SYLLABUS });
 });
+adminRouter.get("/users", async (req, res) => {
+  const search = String(req.query.search ?? "").trim();
+  const roleFilter = String(req.query.role ?? "all").toLowerCase();
+  const statusFilter = String(req.query.status ?? "all").toLowerCase();
+
+  let sql = `
+    SELECT
+      u.id, u.email, u.full_name, u.mobile, u.role, u.is_active, u.created_at, u.updated_at,
+      p.preparation_status, e.name target_exam
+    FROM users u
+    LEFT JOIN user_profiles p ON p.user_id = u.id
+    LEFT JOIN exams e ON e.id = p.target_exam_id
+    WHERE 1=1
+  `;
+  const params = [];
+  let idx = 1;
+
+  if (search) {
+    sql += ` AND (u.email ILIKE $${idx} OR u.full_name ILIKE $${idx} OR u.mobile ILIKE $${idx})`;
+    params.push(`%${search}%`);
+    idx++;
+  }
+
+  if (roleFilter && roleFilter !== "all") {
+    sql += ` AND u.role = $${idx}`;
+    params.push(roleFilter);
+    idx++;
+  }
+
+  if (statusFilter === "active") {
+    sql += ` AND u.is_active = TRUE`;
+  } else if (statusFilter === "disabled") {
+    sql += ` AND u.is_active = FALSE`;
+  }
+
+  sql += ` ORDER BY CASE WHEN u.role = 'admin' THEN 0 ELSE 1 END, u.created_at DESC LIMIT 300`;
+
+  const rows = await pool.query(sql, params);
+
+  const summary = await pool.query(`
+    SELECT
+      count(*)::int total_users,
+      count(*) FILTER (WHERE role = 'admin')::int total_admins,
+      count(*) FILTER (WHERE role = 'student')::int total_students,
+      count(*) FILTER (WHERE is_active = TRUE)::int total_active,
+      count(*) FILTER (WHERE is_active = FALSE)::int total_disabled
+    FROM users
+  `);
+
+  res.json({
+    users: rows.rows,
+    summary: summary.rows[0],
+    currentUserId: req.session.userId
+  });
+});
+
+adminRouter.patch("/users/:id/role", async (req, res) => {
+  const input = validate(
+    z.object({
+      role: z.enum(["student", "admin"])
+    }),
+    req.body
+  );
+
+  if (req.params.id === req.session.userId && input.role !== "admin") {
+    return res.status(400).json({
+      error: "You cannot change or demote your own administrator role."
+    });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const previous = await client.query(
+      "SELECT id, email, full_name, role, is_active FROM users WHERE id = $1 FOR UPDATE",
+      [req.params.id]
+    );
+    if (!previous.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const updated = await client.query(
+      `UPDATE users
+       SET role = $2, updated_at = now()
+       WHERE id = $1
+       RETURNING id, email, full_name, role, is_active, updated_at`,
+      [req.params.id, input.role]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs
+        (actor_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, 'user.role_change', 'user', $2, $3, $4)`,
+      [
+        req.session.userId,
+        req.params.id,
+        JSON.stringify({
+          fromRole: previous.rows[0].role,
+          toRole: input.role,
+          targetEmail: previous.rows[0].email
+        }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      user: updated.rows[0],
+      message: `Role for ${updated.rows[0].full_name || updated.rows[0].email} successfully updated to ${input.role}.`
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
+adminRouter.patch("/users/:id/status", async (req, res) => {
+  const input = validate(
+    z.object({
+      isActive: z.boolean()
+    }),
+    req.body
+  );
+
+  if (req.params.id === req.session.userId && !input.isActive) {
+    return res.status(400).json({
+      error: "You cannot disable your own administrator account."
+    });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const updated = await client.query(
+      `UPDATE users
+       SET is_active = $2, updated_at = now()
+       WHERE id = $1
+       RETURNING id, email, full_name, role, is_active, updated_at`,
+      [req.params.id, input.isActive]
+    );
+    if (!updated.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs
+        (actor_id, action, entity_type, entity_id, details, ip_address)
+       VALUES ($1, $2, 'user', $3, $4, $5)`,
+      [
+        req.session.userId,
+        input.isActive ? "user.enable" : "user.disable",
+        req.params.id,
+        JSON.stringify({ isActive: input.isActive }),
+        req.ip
+      ]
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      user: updated.rows[0],
+      message: `Account ${input.isActive ? "enabled" : "disabled"} successfully.`
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
 adminRouter.get("/students", async (req, res) => {
   const search = String(req.query.search ?? "");
+  const role = req.query.role ? String(req.query.role) : null;
   const students = await pool.query(
     `SELECT
        u.id, u.email, u.full_name, u.mobile, u.role, u.is_active, u.created_at,
@@ -255,11 +430,11 @@ adminRouter.get("/students", async (req, res) => {
      FROM users u
      LEFT JOIN user_profiles p ON p.user_id = u.id
      LEFT JOIN exams e ON e.id = p.target_exam_id
-     WHERE u.role = 'student'
+     WHERE ($3::text IS NULL OR u.role = $3)
        AND ($1 = '' OR u.email ILIKE $2 OR u.full_name ILIKE $2)
      ORDER BY u.created_at DESC
      LIMIT 200`,
-    [search, `%${search}%`]
+    [search, `%${search}%`, role ?? 'student']
   );
   res.json({ students: students.rows });
 });
@@ -271,6 +446,12 @@ adminRouter.patch("/students/:id", async (req, res) => {
     }),
     req.body
   );
+  if (req.params.id === req.session.userId && input.role && input.role !== "admin") {
+    return res.status(400).json({ error: "You cannot demote your own administrator role." });
+  }
+  if (req.params.id === req.session.userId && input.isActive === false) {
+    return res.status(400).json({ error: "You cannot disable your own administrator account." });
+  }
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

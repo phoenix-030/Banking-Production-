@@ -16,7 +16,7 @@
     "preview": "vite preview client",
     "db:migrate": "node server/migrate.js",
     "db:seed-admin": "node server/seed-admin.js",
-    "test": "node tests/verify_workflow.js && node tests/verify_syllabus_and_topics.js"
+    "test": "node tests/verify_workflow.js && node tests/verify_syllabus_and_topics.js && node tests/verify_role_management.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
