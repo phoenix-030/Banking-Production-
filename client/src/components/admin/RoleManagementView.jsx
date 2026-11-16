@@ -343,13 +343,7 @@ function RoleManagementView({
                           onChange={(e) => {
                             const newRole = e.target.value;
                             if (newRole !== u.role) {
-                              const confirmText =
-                                newRole === "admin"
-                                  ? `Promote ${u.full_name || u.email} to Administrator? They will receive full administrative privileges.`
-                                  : `Demote ${u.full_name || u.email} to Student? They will lose administrative access.`;
-                              if (window.confirm(confirmText)) {
-                                onUpdateRole(u.id, newRole);
-                              }
+                              onUpdateRole(u.id, newRole);
                             }
                           }}
                           style={{
@@ -385,10 +379,7 @@ function RoleManagementView({
                             color: u.is_active ? "var(--danger, #dc2626)" : "var(--success, #16a34a)"
                           }}
                           onClick={() => {
-                            const actionName = u.is_active ? "disable" : "enable";
-                            if (window.confirm(`Are you sure you want to ${actionName} access for ${u.full_name || u.email}?`)) {
-                              onUpdateStatus(u.id, !u.is_active);
-                            }
+                            onUpdateStatus(u.id, !u.is_active);
                           }}
                         >
                           {u.is_active ? "Disable" : "Enable"}

@@ -431,7 +431,7 @@ adminRouter.patch("/users/:id/status", async (req, res) => {
     await client.query("COMMIT");
     res.json({
       user: updated.rows[0],
-      message: `Account ${input.isActive ? "enabled" : "disabled"} successfully.`
+      message: `Account for ${updated.rows[0].full_name || updated.rows[0].email} ${input.isActive ? "enabled" : "disabled"} successfully.`
     });
   } catch (error) {
     await client.query("ROLLBACK");
