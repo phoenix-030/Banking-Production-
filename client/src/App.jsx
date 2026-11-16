@@ -45,7 +45,7 @@ const adminPages = [
   ["Students", Activity],
   ["Current affairs", CalendarDays],
   ["Reports", ShieldCheck],
-  ["Settings", ShieldCheck]
+  ["Activity Logs", ShieldCheck]
 ];
 function App() {
   const [user, setUser] = useState(null);
@@ -104,7 +104,7 @@ function App() {
   return <div className="app-shell">
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
-          <img className="brand-logo" src="/hhk-logo.png" alt="HHK logo" />
+          <img className="brand-logo" src="/logo.png" alt="HHK logo" />
           <span className="brand-name">HHK</span>
           <button
     className="mobile-close icon-btn"

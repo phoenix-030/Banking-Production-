@@ -8,6 +8,8 @@ function PracticeSetupView({
   setSectionId,
   topicName,
   setTopicName,
+  subtopicName,
+  setSubtopicName,
   difficulty,
   setDifficulty,
   count,
@@ -21,6 +23,19 @@ function PracticeSetupView({
   const readyExamIds = new Set(catalog.map((c) => c.exam_id));
   const examOptions = exams.length ? exams : [...new Map(catalog.map((c) => [c.exam_id, { id: c.exam_id, name: c.exam_name, category: c.exam_category }])).values()];
   const selectedHasQuestions = !selectedExam || readyExamIds.has(selectedExam);
+
+  const distinctTopics = [
+    ...new Map(
+      catalog
+        .filter((c) => c.section_id === sectionId && c.topic_name)
+        .map((c) => [c.topic_name, c])
+    ).values()
+  ];
+
+  const availableSubtopics = catalog
+    .filter((c) => c.section_id === sectionId && c.topic_name === topicName && c.subtopic_name)
+    .map((c) => c.subtopic_name);
+  const distinctSubtopics = [...new Set(availableSubtopics)];
   return <>
       <div className="student-welcome">
         <div>
@@ -43,55 +58,80 @@ function PracticeSetupView({
               <label>
                 Exam
                 <select
-    value={selectedExam}
-    onChange={(e) => {
-      setSelectedExam(e.target.value);
-      setSectionId("");
-      setTopicName("");
-    }}
-  >
+                  value={selectedExam}
+                  onChange={(e) => {
+                    setSelectedExam(e.target.value);
+                    setSectionId("");
+                    setTopicName("");
+                    setSubtopicName?.("");
+                  }}
+                >
                   <option value="">Select exam</option>
                   <ExamOptGroups
-    exams={examOptions}
-    getKey={(e) => e.id}
-    getValue={(e) => e.id}
-    getLabel={(e) => `${e.name}${readyExamIds.has(e.id) ? " \xB7 Ready" : ""}`}
-  />
+                    exams={examOptions}
+                    getKey={(e) => e.id}
+                    getValue={(e) => e.id}
+                    getLabel={(e) => `${e.name}${readyExamIds.has(e.id) ? " · Ready" : ""}`}
+                  />
                 </select>
               </label>
               <label>
                 Section
                 <select
-    value={sectionId}
-    disabled={!selectedExam}
-    onChange={(e) => {
-      setSectionId(e.target.value);
-      setTopicName("");
-    }}
-  >
+                  value={sectionId}
+                  disabled={!selectedExam}
+                  onChange={(e) => {
+                    setSectionId(e.target.value);
+                    setTopicName("");
+                    setSubtopicName?.("");
+                  }}
+                >
                   <option value="">Select section</option>
                   {[
-    ...new Map(
-      catalog.filter((c) => c.exam_id === selectedExam).map((c) => [c.section_id, c])
-    ).values()
-  ].map((c) => <option key={c.section_id} value={c.section_id}>
+                    ...new Map(
+                      catalog.filter((c) => c.exam_id === selectedExam).map((c) => [c.section_id, c])
+                    ).values()
+                  ].map((c) => (
+                    <option key={c.section_id} value={c.section_id}>
                       {c.stage_name} · {c.section_name}
-                    </option>)}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>
                 Topic
                 <select
-    value={topicName}
-    disabled={!sectionId}
-    onChange={(e) => setTopicName(e.target.value)}
-  >
+                  value={topicName}
+                  disabled={!sectionId}
+                  onChange={(e) => {
+                    setTopicName(e.target.value);
+                    setSubtopicName?.("");
+                  }}
+                >
                   <option value="">Any topic</option>
-                  {catalog.filter((c) => c.section_id === sectionId && c.topic_name).map((c) => <option key={c.topic_id} value={c.topic_name}>
-                        {c.topic_name}
-                      </option>)}
+                  {distinctTopics.map((c) => (
+                    <option key={c.topic_name} value={c.topic_name}>
+                      {c.topic_name}
+                    </option>
+                  ))}
                 </select>
               </label>
+              {distinctSubtopics.length > 0 && (
+                <label>
+                  Subtopic
+                  <select
+                    value={subtopicName || ""}
+                    onChange={(e) => setSubtopicName?.(e.target.value)}
+                  >
+                    <option value="">Any subtopic ({distinctSubtopics.length})</option>
+                    {distinctSubtopics.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Difficulty
                 <select

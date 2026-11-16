@@ -63,6 +63,7 @@ export const examSchema = z.object({
 export const questionSchema = z.object({
   sectionId: z.string().uuid(),
   topicName: z.string().trim().min(1).max(120),
+  subtopicName: z.string().trim().max(120).default(''),
   difficulty: z.enum(['easy', 'medium', 'hard']),
   questionType: z.enum(['mcq', 'passage', 'image', 'numeric', 'descriptive']).default('mcq'),
   language: z.string().trim().min(2).max(32).default('English'),

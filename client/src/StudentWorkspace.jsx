@@ -59,6 +59,7 @@ function StudentWorkspace({
   const [selectedExam, setSelectedExam] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [topicName, setTopicName] = useState("");
+  const [subtopicName, setSubtopicName] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [count, setCount] = useState(20);
   const [practice, setPractice] = useState(null);
@@ -421,6 +422,7 @@ function StudentWorkspace({
         body: JSON.stringify({
           sectionId,
           topicName: topicName || void 0,
+          subtopicName: subtopicName || void 0,
           difficulty: difficulty || void 0,
           count
         })
@@ -720,6 +722,8 @@ function StudentWorkspace({
     setSectionId={setSectionId}
     topicName={topicName}
     setTopicName={setTopicName}
+    subtopicName={subtopicName}
+    setSubtopicName={setSubtopicName}
     difficulty={difficulty}
     setDifficulty={setDifficulty}
     count={count}

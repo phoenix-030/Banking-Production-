@@ -11,6 +11,7 @@ import {
   MIN_BANK_UPLOAD_QUESTIONS,
   syncStageQuestionBankMockTest
 } from '../services/questionBankSync.js';
+import { BANKING_SYLLABUS } from '../../shared/bankingSyllabus.js';
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
 async function syncSectionsStage(sectionIds, actorId, autoPublishExam = false) {
@@ -51,7 +52,7 @@ async function audit(actor, action, type, id, details = {}, ip) {
     [actor ?? null, action, type, id, JSON.stringify(details), ip ?? null]
   );
 }
-async function upsertTopic(sectionId, name) {
+async function upsertTopic(sectionId, name, subtopicName = '') {
   const result = await pool.query(
     `INSERT INTO topics(section_id, name)
      VALUES ($1, $2)
@@ -60,7 +61,20 @@ async function upsertTopic(sectionId, name) {
      RETURNING id`,
     [sectionId, name]
   );
-  return result.rows[0].id;
+  const parentId = result.rows[0].id;
+  if (subtopicName && subtopicName.trim()) {
+    const cleanSub = subtopicName.trim();
+    const subResult = await pool.query(
+      `INSERT INTO topics(section_id, parent_topic_id, name)
+       VALUES ($1, $2, $3)
+       ON CONFLICT(section_id, name)
+       DO UPDATE SET parent_topic_id = EXCLUDED.parent_topic_id
+       RETURNING id`,
+      [sectionId, parentId, cleanSub]
+    );
+    return subResult.rows[0].id;
+  }
+  return parentId;
 }
 async function assertPassageGroup(sectionId, questionType, passageGroupId) {
   if (questionType !== "passage") return;
@@ -204,13 +218,21 @@ adminRouter.get("/overview", async (_req, res) => {
   const stats = await pool.query(`
     SELECT
       (SELECT count(*) FROM users WHERE role = 'student') students,
+      (SELECT count(*) FROM users WHERE role = 'student') total_students,
       (SELECT count(*) FROM users WHERE role = 'student'
         AND updated_at > now() - interval '30 days') active_students,
+      (SELECT count(*) FROM exams) total_exams,
+      (SELECT count(*) FROM exams WHERE status = 'published') published_exams,
+      (SELECT count(DISTINCT name) FROM exam_sections) total_subjects,
+      (SELECT count(DISTINCT topic_name) FROM questions WHERE topic_name <> '') total_topics,
       (SELECT count(*) FROM questions) total_questions,
       (SELECT count(*) FROM questions WHERE status = 'published') published_questions,
+      (SELECT count(*) FROM questions WHERE difficulty = 'easy') easy_questions,
+      (SELECT count(*) FROM questions WHERE difficulty = 'medium') medium_questions,
+      (SELECT count(*) FROM questions WHERE difficulty = 'hard') hard_questions,
+      (SELECT count(*) FROM mock_tests) mock_tests_created,
       (SELECT count(*) FROM mock_tests WHERE status = 'published') published_tests,
       (SELECT count(*) FROM test_attempts WHERE status <> 'in_progress') attempts,
-      (SELECT count(*) FROM exams WHERE status = 'published') published_exams,
       (SELECT coalesce(sum(invalid_rows), 0) FROM upload_batches) import_validation_failures
   `);
   const activity = await pool.query(
@@ -220,6 +242,9 @@ adminRouter.get("/overview", async (_req, res) => {
     stats: stats.rows[0],
     activity: activity.rows
   });
+});
+adminRouter.get("/syllabus", (_req, res) => {
+  res.json({ syllabus: BANKING_SYLLABUS });
 });
 adminRouter.get("/students", async (req, res) => {
   const search = String(req.query.search ?? "");
@@ -811,9 +836,11 @@ adminRouter.get("/questions", async (req, res) => {
      JOIN exams e ON e.id = st.exam_id
      WHERE ($1::uuid IS NULL OR q.section_id = $1)
        AND ($2::text IS NULL OR q.status = $2)
+       AND ($4::text IS NULL OR q.topic_name = $4)
        AND (
          $3::text IS NULL OR
          q.topic_name ILIKE $3 OR
+         q.subtopic_name ILIKE $3 OR
          q.question_text ILIKE $3 OR
          pg.passage_text ILIKE $3
        )
@@ -822,7 +849,8 @@ adminRouter.get("/questions", async (req, res) => {
     [
       req.query.sectionId ?? null,
       req.query.status ?? null,
-      req.query.search ? `%${req.query.search}%` : null
+      req.query.search ? `%${req.query.search}%` : null,
+      req.query.topic ?? null
     ]
   );
   res.json({ questions: rows.rows });
@@ -836,27 +864,29 @@ adminRouter.post("/questions", async (req, res) => {
   );
   const topicId = await upsertTopic(
     question.sectionId,
-    question.topicName
+    question.topicName,
+    question.subtopicName
   );
   const hash = crypto.createHash("sha256").update(
     `${question.sectionId}:${question.questionText.trim().toLowerCase()}`
   ).digest("hex");
   const saved = await pool.query(
     `INSERT INTO questions
-      (section_id, topic_id, topic_name, difficulty, question_type,
+      (section_id, topic_id, topic_name, subtopic_name, difficulty, question_type,
        language, question_text, options, correct_answer, explanation,
        marks, negative_marks, source, source_year, status, created_by,
        image_url, passage_group_id, content_hash)
      VALUES
       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-       $11, $12, $13, $14, $15, $16, $17, $18, $19)
+       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      RETURNING
-       id, status, topic_name, difficulty, question_type,
+       id, status, topic_name, subtopic_name, difficulty, question_type,
        image_url, passage_group_id, created_at`,
     [
       question.sectionId,
       topicId,
       question.topicName,
+      question.subtopicName || '',
       question.difficulty,
       question.questionType,
       question.language,
@@ -882,6 +912,7 @@ adminRouter.post("/questions", async (req, res) => {
     saved.rows[0].id,
     {
       topic: question.topicName,
+      subtopic: question.subtopicName || '',
       type: question.questionType,
       passageGroupId: question.passageGroupId
     },
@@ -907,7 +938,8 @@ adminRouter.put("/questions/:id", async (req, res) => {
   );
   const topicId = await upsertTopic(
     question.sectionId,
-    question.topicName
+    question.topicName,
+    question.subtopicName
   );
   const hash = crypto.createHash("sha256").update(
     `${question.sectionId}:${question.questionText.trim().toLowerCase()}`
@@ -917,31 +949,33 @@ adminRouter.put("/questions/:id", async (req, res) => {
      SET section_id = $2,
          topic_id = $3,
          topic_name = $4,
-         difficulty = $5,
-         question_type = $6,
-         language = $7,
-         question_text = $8,
-         options = $9,
-         correct_answer = $10,
-         explanation = $11,
-         marks = $12,
-         negative_marks = $13,
-         source = $14,
-         source_year = $15,
-         status = $16,
-         image_url = $17,
-         passage_group_id = $18,
-         content_hash = $19,
+         subtopic_name = $5,
+         difficulty = $6,
+         question_type = $7,
+         language = $8,
+         question_text = $9,
+         options = $10,
+         correct_answer = $11,
+         explanation = $12,
+         marks = $13,
+         negative_marks = $14,
+         source = $15,
+         source_year = $16,
+         status = $17,
+         image_url = $18,
+         passage_group_id = $19,
+         content_hash = $20,
          updated_at = now()
      WHERE id = $1
      RETURNING
-       id, status, topic_name, difficulty, question_type,
+       id, status, topic_name, subtopic_name, difficulty, question_type,
        image_url, passage_group_id, updated_at`,
     [
       req.params.id,
       question.sectionId,
       topicId,
       question.topicName,
+      question.subtopicName || '',
       question.difficulty,
       question.questionType,
       question.language,
@@ -1130,6 +1164,7 @@ const IMPORT_COLUMNS = [
   "stage",
   "section",
   "topic",
+  "subtopic",
   "difficulty",
   "question",
   "option_a",
@@ -1142,7 +1177,7 @@ const IMPORT_COLUMNS = [
   "source"
 ];
 const REQUIRED_IMPORT_COLUMNS = IMPORT_COLUMNS.filter(
-  (column) => column !== "source"
+  (column) => column !== "source" && column !== "subtopic"
 );
 function rowErrors(row) {
   const errors = [];
@@ -1378,6 +1413,7 @@ adminRouter.post("/questions/import/:batchId/confirm", async (req, res) => {
       );
       if (!section.rowCount) continue;
       touchedStageIds.add(section.rows[0].stage_id);
+      const subtopic = row.subtopic ? String(row.subtopic).trim() : "";
       const topic = (await client.query(
         `INSERT INTO topics(section_id, name)
            VALUES ($1, $2)
@@ -1386,6 +1422,15 @@ adminRouter.post("/questions/import/:batchId/confirm", async (req, res) => {
            RETURNING id`,
         [section.rows[0].id, row.topic]
       )).rows[0];
+      if (subtopic) {
+        await client.query(
+          `INSERT INTO topics(section_id, parent_topic_id, name)
+             VALUES ($1, $2, $3)
+             ON CONFLICT(section_id, name)
+             DO UPDATE SET parent_topic_id = EXCLUDED.parent_topic_id`,
+          [section.rows[0].id, topic.id, subtopic]
+        );
+      }
       const options = ["A", "B", "C", "D"].map((key) => ({
         key,
         text: row[`option_${key.toLowerCase()}`]
@@ -1393,19 +1438,20 @@ adminRouter.post("/questions/import/:batchId/confirm", async (req, res) => {
       const hash = crypto.createHash("sha256").update(`${section.rows[0].id}:${row.question.toLowerCase()}`).digest("hex");
       const saved = await client.query(
         `INSERT INTO questions
-          (section_id, topic_id, topic_name, difficulty, language,
+          (section_id, topic_id, topic_name, subtopic_name, difficulty, language,
            question_text, options, correct_answer, explanation,
            marks, negative_marks, source, source_year, status,
            created_by, content_hash)
          VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-           $10, $11, $12, $13, 'published', $14, $15)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+           $11, $12, $13, $14, 'published', $15, $16)
          ON CONFLICT DO NOTHING
          RETURNING id`,
         [
           section.rows[0].id,
           topic.id,
           row.topic,
+          subtopic,
           row.difficulty.toLowerCase(),
           row.language,
           row.question,

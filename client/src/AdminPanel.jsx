@@ -36,6 +36,7 @@ const defaultExam = (name, code) => ({
 const emptyForm = () => ({
   sectionId: "",
   topicName: "",
+  subtopicName: "",
   difficulty: "medium",
   questionType: "mcq",
   language: "English",
@@ -353,6 +354,7 @@ function AdminPanel({
       const payload = {
         sectionId: form.sectionId,
         topicName: form.topicName,
+        subtopicName: form.subtopicName || "",
         difficulty: form.difficulty,
         questionType: form.questionType,
         language: form.language,
@@ -394,6 +396,7 @@ function AdminPanel({
     setForm({
       sectionId: q.section_id,
       topicName: q.topic_name,
+      subtopicName: q.subtopic_name ?? "",
       difficulty: q.difficulty,
       questionType: q.question_type,
       language: q.language,

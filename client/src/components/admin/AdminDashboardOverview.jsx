@@ -1,34 +1,97 @@
 import {
   Activity as ActivityIcon,
   ArrowRight,
+  BookOpen,
   ClipboardList,
   FileQuestion,
+  GraduationCap,
+  Layers,
   ShieldCheck,
   Target as TargetIcon,
   Users
 } from "lucide-react";
+
 function AdminDashboardOverview({
   stats,
   activity,
   onNavigate
 }) {
-  const statItems = [
-    ["Students", stats?.students ?? "\u2014", Users],
-    ["Active students", stats?.active_students ?? "\u2014", ActivityIcon],
-    ["Total questions", stats?.total_questions ?? "\u2014", FileQuestion],
-    ["Published mock tests", stats?.published_tests ?? "\u2014", ClipboardList],
-    ["Published exams", stats?.published_exams ?? "\u2014", TargetIcon],
-    ["Completed attempts", stats?.attempts ?? "\u2014", ShieldCheck]
+  const primaryStats = [
+    {
+      label: "Total Exams",
+      value: stats?.total_exams ?? (stats?.published_exams ?? 0),
+      subtitle: `${stats?.published_exams ?? 0} published`,
+      icon: TargetIcon,
+      color: "blue"
+    },
+    {
+      label: "Total Subjects",
+      value: stats?.total_subjects ? Math.max(6, Number(stats.total_subjects)) : 6,
+      subtitle: "6 Core Banking Domains",
+      icon: BookOpen,
+      color: "purple"
+    },
+    {
+      label: "Total Topics",
+      value: stats?.total_topics ?? 0,
+      subtitle: "Organized by syllabus",
+      icon: Layers,
+      color: "amber"
+    },
+    {
+      label: "Total Questions",
+      value: stats?.total_questions ?? 0,
+      difficultyBreakdown: {
+        easy: stats?.easy_questions ?? 0,
+        medium: stats?.medium_questions ?? 0,
+        hard: stats?.hard_questions ?? 0
+      },
+      icon: FileQuestion,
+      color: "lavender"
+    },
+    {
+      label: "Total Students",
+      value: stats?.total_students ?? (stats?.students ?? 0),
+      subtitle: `${stats?.active_students ?? 0} active in 30 days`,
+      icon: Users,
+      color: "emerald"
+    },
+    {
+      label: "Mock Tests Created",
+      value: stats?.mock_tests_created ?? (stats?.published_tests ?? 0),
+      subtitle: `${stats?.published_tests ?? 0} published · ${stats?.attempts ?? 0} attempts`,
+      icon: ClipboardList,
+      color: "indigo"
+    }
   ];
+
   return <>
-      <div className="stats-grid admin-stats">
-        {statItems.map(([label, value, Icon]) => <div className="stat-card" key={label}>
-            <span className="stat-icon lavender">
-              <Icon size={17} />
-            </span>
-            <span className="stat-label">{label}</span>
-            <div className="stat-value">{value}</div>
-          </div>)}
+      <div className="stats-grid admin-stats" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        {primaryStats.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div className="stat-card" key={item.label}>
+              <span className={`stat-icon ${item.color || "lavender"}`}>
+                <Icon size={17} />
+              </span>
+              <span className="stat-label">{item.label}</span>
+              <div className="stat-value">{item.value}</div>
+              {item.difficultyBreakdown ? (
+                <div style={{ display: "flex", gap: "6px", marginTop: "6px", fontSize: "11px", fontWeight: 600 }}>
+                  <span style={{ color: "var(--success, #16a34a)" }}>Easy: {item.difficultyBreakdown.easy}</span>
+                  <span>·</span>
+                  <span style={{ color: "var(--warning, #d97706)" }}>Med: {item.difficultyBreakdown.medium}</span>
+                  <span>·</span>
+                  <span style={{ color: "var(--danger, #dc2626)" }}>Hard: {item.difficultyBreakdown.hard}</span>
+                </div>
+              ) : item.subtitle ? (
+                <small style={{ color: "var(--text-muted)", fontSize: "12px", marginTop: "4px", display: "block" }}>
+                  {item.subtitle}
+                </small>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       <div className="panel admin-panel admin-quicklinks">
@@ -39,18 +102,20 @@ function AdminDashboardOverview({
         </p>
         <div>
           {[
-    "Exam setup",
-    "Question bank",
-    "Mock tests",
-    "Current affairs",
-    "Students"
-  ].map((page) => <button
-    className="outline-btn admin-action"
-    key={page}
-    onClick={() => onNavigate(page)}
-  >
+            "Exam setup",
+            "Question bank",
+            "Mock tests",
+            "Current affairs",
+            "Students"
+          ].map((page) => (
+            <button
+              className="outline-btn admin-action"
+              key={page}
+              onClick={() => onNavigate(page)}
+            >
               {page} <ArrowRight size={14} />
-            </button>)}
+            </button>
+          ))}
         </div>
       </div>
 

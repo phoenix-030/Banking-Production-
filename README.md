@@ -47,6 +47,13 @@ npm run dev
    - **Dummy Camera Monitor**: Local webcam mirror providing simulated proctoring without recording or leaking student video.
 8. **DevTools Security & Code Concealment**:
    - Production Vite builds disable source maps (`sourcemap: false`) and block direct DevTools requests to source paths and configuration files.
+9. **Complete Banking Exam Syllabus & Dynamic Topic Dropdowns**:
+   - Standardized hierarchy: **Exam → Subject → Topic → Subtopic → Difficulty Level → Questions**.
+   - Built-in syllabus module covering 6 banking subjects and 118 topics (Quantitative Aptitude, Reasoning Ability, English Language, General Awareness, Banking & Financial Awareness, Computer Awareness).
+   - Dynamic `<select>` dropdowns for topics and subtopics in the Question Bank with custom fallback and topic filtering.
+10. **Enhanced Admin Metrics & Topic Drilling**:
+   - Admin dashboard displays Total Exams, Total Subjects, Total Topics, Total Questions (with Easy / Medium / Hard breakdown), Total Students, and Mock Tests Created.
+   - Students can select both topics and subtopics for focused practice sessions.
 
 ---
 

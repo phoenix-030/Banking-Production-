@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Check,
   Copy,
@@ -12,6 +13,11 @@ import {
   ExamOptGroups,
   groupExamsByCategory
 } from "../../utils/examCategories";
+import {
+  BANKING_SYLLABUS,
+  getTopicsForSection,
+  getSubtopicsForTopic
+} from "../../shared/bankingSyllabus.js";
 function QuestionBankView({
   exams,
   examIndex,
@@ -49,13 +55,26 @@ function QuestionBankView({
   onBulkQuestionStatus,
   onRemoveQuestion
 }) {
+  const [isCustomTopic, setIsCustomTopic] = useState(false);
+  const [isCustomSubtopic, setIsCustomSubtopic] = useState(false);
+  const [topicFilter, setTopicFilter] = useState("");
+
   const exam = exams[examIndex];
   const stage = exam?.stages[stageIndex];
+  const selectedSection = stage?.sections.find((s) => s.id === form.sectionId);
+  const syllabusTopics = selectedSection ? getTopicsForSection(selectedSection.name) : [];
+  const availableSubtopics = (selectedSection && form.topicName) ? getSubtopicsForTopic(selectedSection.name, form.topicName) : [];
+
   const stagePublishedCount = questions.filter(
     (q) => q.exam_name === exam?.name && q.stage_name === stage?.name && q.status === "published"
   ).length;
   const minRequired = Number(uploadPreview?.minimumRequired ?? 20);
   const meetsMinimumUpload = confirmRows.length >= minRequired;
+
+  const distinctTopics = [...new Set(questions.map((q) => q.topic_name).filter(Boolean))].sort();
+  const filteredQuestions = topicFilter
+    ? visibleQuestions.filter((q) => q.topic_name === topicFilter)
+    : visibleQuestions;
   return <>
       <section className="panel admin-panel import-panel">
         <div className="admin-panel-heading">
@@ -74,21 +93,24 @@ function QuestionBankView({
         </div>
         <div className="import-controls">
           <input
-    type="file"
-    accept=".csv,.xlsx"
-    onChange={(e) => {
-      onSetUploadFile(e.target.files?.[0] ?? null);
-      onSetUploadPreview(null);
-    }}
-  />
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={(e) => {
+              onSetUploadFile(e.target.files?.[0] ?? null);
+              onSetUploadPreview(null);
+            }}
+          />
           <button
-    className="outline-btn admin-action"
-    disabled={!uploadFile || busy}
-    onClick={onPreviewUpload}
-  >
+            className="outline-btn admin-action"
+            disabled={!uploadFile || busy}
+            onClick={onPreviewUpload}
+          >
             Validate upload
           </button>
         </div>
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 10px" }}>
+          Template columns: <code>exam_code</code>, <code>stage</code>, <code>section</code>, <code>topic</code>, <code>subtopic</code> (optional), <code>difficulty</code>, <code>question</code>, <code>option_a..d</code>, <code>correct_answer</code>, <code>explanation</code>, <code>language</code>, <code>source</code>
+        </p>
         {exams.length > 0 && <details className="supported-codes-hint">
             <summary>
               Supported <code>exam_code</code> values ({exams.length} exams across{" "}
@@ -222,25 +244,130 @@ function QuestionBankView({
             <label>
               Section
               <select
-    value={form.sectionId}
-    onChange={(e) => onSetForm({
-      ...form,
-      sectionId: e.target.value,
-      passageGroupId: ""
-    })}
-  >
+                value={form.sectionId}
+                onChange={(e) => {
+                  onSetForm({
+                    ...form,
+                    sectionId: e.target.value,
+                    topicName: "",
+                    subtopicName: "",
+                    passageGroupId: ""
+                  });
+                  setIsCustomTopic(false);
+                  setIsCustomSubtopic(false);
+                }}
+              >
                 <option value="">Choose section</option>
-                {stage?.sections.map((s) => <option key={s.id} value={s.id}>
+                {stage?.sections.map((s) => (
+                  <option key={s.id} value={s.id}>
                     {s.name}
-                  </option>)}
+                  </option>
+                ))}
               </select>
             </label>
-            <Field
-    label="Topic"
-    value={form.topicName}
-    placeholder="e.g. Syllogism"
-    onChange={(v) => onSetForm({ ...form, topicName: v })}
-  />
+
+            {!isCustomTopic && syllabusTopics.length > 0 ? (
+              <label>
+                Topic
+                <select
+                  value={
+                    syllabusTopics.some((t) => t.name === form.topicName)
+                      ? form.topicName
+                      : form.topicName
+                      ? "__custom__"
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setIsCustomTopic(true);
+                    } else {
+                      onSetForm({
+                        ...form,
+                        topicName: e.target.value,
+                        subtopicName: ""
+                      });
+                      setIsCustomSubtopic(false);
+                    }
+                  }}
+                >
+                  <option value="">Choose syllabus topic ({syllabusTopics.length})</option>
+                  {syllabusTopics.map((t) => (
+                    <option key={t.name} value={t.name}>
+                      {t.name} {t.subtopics && t.subtopics.length ? `(${t.subtopics.length} subtopics)` : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Custom topic...</option>
+                </select>
+              </label>
+            ) : (
+              <div>
+                <Field
+                  label={syllabusTopics.length > 0 ? "Topic (Custom)" : "Topic"}
+                  value={form.topicName}
+                  placeholder={syllabusTopics.length > 0 ? "Enter custom topic" : "e.g. Syllogism"}
+                  onChange={(v) => onSetForm({ ...form, topicName: v })}
+                />
+                {syllabusTopics.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    style={{ fontSize: "12px", marginTop: "4px" }}
+                    onClick={() => setIsCustomTopic(false)}
+                  >
+                    ← Choose from syllabus
+                  </button>
+                )}
+              </div>
+            )}
+
+            {availableSubtopics.length > 0 && !isCustomSubtopic ? (
+              <label>
+                Subtopic (optional)
+                <select
+                  value={
+                    availableSubtopics.includes(form.subtopicName)
+                      ? form.subtopicName
+                      : form.subtopicName
+                      ? "__custom__"
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setIsCustomSubtopic(true);
+                    } else {
+                      onSetForm({ ...form, subtopicName: e.target.value });
+                    }
+                  }}
+                >
+                  <option value="">General / All ({form.topicName})</option>
+                  {availableSubtopics.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                  <option value="__custom__">+ Custom subtopic...</option>
+                </select>
+              </label>
+            ) : form.topicName ? (
+              <div>
+                <Field
+                  label={availableSubtopics.length > 0 ? "Subtopic (Custom)" : "Subtopic (optional)"}
+                  value={form.subtopicName || ""}
+                  placeholder="e.g. Table DI"
+                  onChange={(v) => onSetForm({ ...form, subtopicName: v })}
+                />
+                {availableSubtopics.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    style={{ fontSize: "12px", marginTop: "4px" }}
+                    onClick={() => setIsCustomSubtopic(false)}
+                  >
+                    ← Choose from subtopics
+                  </button>
+                )}
+              </div>
+            ) : null}
             <label>
               Difficulty
               <select
@@ -531,14 +658,39 @@ function QuestionBankView({
                 <span className="question-count">{questions.length}</span>
               </h2>
             </div>
-            <label className="question-search">
-              <Search size={15} />
-              <input
-    value={filter}
-    onChange={(e) => onSetFilter(e.target.value)}
-    placeholder="Search questions"
-  />
-            </label>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              {distinctTopics.length > 0 && (
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Topic:</span>
+                  <select
+                    value={topicFilter}
+                    onChange={(e) => setTopicFilter(e.target.value)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      fontSize: "13px",
+                      background: "var(--input-bg, #fff)"
+                    }}
+                  >
+                    <option value="">All topics ({distinctTopics.length})</option>
+                    {distinctTopics.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="question-search">
+                <Search size={15} />
+                <input
+                  value={filter}
+                  onChange={(e) => onSetFilter(e.target.value)}
+                  placeholder="Search questions"
+                />
+              </label>
+            </div>
           </div>
 
           {selectedQuestionIds.length > 0 && <div className="bulk-question-actions">
@@ -572,8 +724,8 @@ function QuestionBankView({
               </button>
             </div>}
 
-          {visibleQuestions.length ? <div className="saved-question-list">
-              {visibleQuestions.map((q) => <article className="saved-question" key={q.id}>
+          {filteredQuestions.length ? <div className="saved-question-list">
+              {filteredQuestions.map((q) => <article className="saved-question" key={q.id}>
                   <div className="saved-question-meta">
                     <label className="question-select">
                       <input
@@ -590,6 +742,18 @@ function QuestionBankView({
                       {q.stage_name} · {q.section_name}
                     </span>
                     <span>{q.topic_name}</span>
+                    {q.subtopic_name && (
+                      <span style={{
+                        padding: "2px 7px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        borderRadius: "4px",
+                        backgroundColor: "var(--lavender-100, #ede9fe)",
+                        color: "var(--lavender-900, #5b21b6)"
+                      }}>
+                        {q.subtopic_name}
+                      </span>
+                    )}
                     {q.passage_title && <span>{q.passage_title}</span>}
                     <b className={q.status === "published" ? "published" : ""}>
                       {q.status}

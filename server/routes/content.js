@@ -4,8 +4,13 @@ import { pool } from "../db.js";
 import { requireAuth } from "../middleware.js";
 import { recordStudyDay, syncMilestones } from "../services/milestones.js";
 import { shuffleQuestionOptions } from "../services/questionSelection.js";
+import { BANKING_SYLLABUS } from "../../shared/bankingSyllabus.js";
 
 export const contentRouter = Router();
+
+contentRouter.get("/syllabus", (_req, res) => {
+  res.json({ syllabus: BANKING_SYLLABUS });
+});
 
 contentRouter.get("/exams", requireAuth, async (req, res) => {
   const onlyPublished =
@@ -43,7 +48,22 @@ contentRouter.get("/exams", requireAuth, async (req, res) => {
 
 contentRouter.get("/practice/catalog", requireAuth, async (_req, res) => {
   const rows = await pool.query(
-    "SELECT e.id exam_id,e.name exam_name,st.id stage_id,st.name stage_name,s.id section_id,s.name section_name,t.id topic_id,t.name topic_name FROM exams e JOIN exam_stages st ON st.exam_id=e.id JOIN exam_sections s ON s.stage_id=st.id LEFT JOIN topics t ON t.section_id=s.id WHERE e.status='published' AND EXISTS(SELECT 1 FROM questions q WHERE q.section_id=s.id AND q.status='published') ORDER BY e.name,st.sort_order,s.sort_order,t.name",
+    `SELECT DISTINCT
+       e.id exam_id, e.name exam_name,
+       st.id stage_id, st.name stage_name,
+       s.id section_id, s.name section_name,
+       COALESCE(t.id::text, q.topic_name) topic_id,
+       q.topic_name,
+       COALESCE(q.subtopic_name, '') subtopic_name,
+       count(q.id) question_count
+     FROM exams e
+     JOIN exam_stages st ON st.exam_id = e.id
+     JOIN exam_sections s ON s.stage_id = st.id
+     JOIN questions q ON q.section_id = s.id AND q.status = 'published'
+     LEFT JOIN topics t ON t.section_id = s.id AND t.name = q.topic_name
+     WHERE e.status = 'published'
+     GROUP BY e.id, e.name, st.id, st.name, st.sort_order, s.id, s.name, s.sort_order, t.id, q.topic_name, q.subtopic_name
+     ORDER BY e.name, st.sort_order, s.sort_order, q.topic_name, subtopic_name`,
   );
   res.json({ catalog: rows.rows });
 });
@@ -191,6 +211,7 @@ contentRouter.post("/practice/sessions", requireAuth, async (req, res) => {
       sectionId: z.string().uuid(),
       questionId: z.string().uuid().optional(),
       topicName: z.string().max(120).optional(),
+      subtopicName: z.string().max(120).optional(),
       difficulty: z.enum(["easy", "medium", "hard"]).optional(),
       count: z.number().int().min(1).max(100).default(20),
     })
@@ -203,7 +224,7 @@ contentRouter.post("/practice/sessions", requireAuth, async (req, res) => {
   ).rows.map((r) => r.question_id);
   let idx = 3;
   let sql =
-    "SELECT q.id,q.question_type,q.question_text,q.image_url,pg.title passage_title,pg.passage_text,pg.language passage_language,pg.image_url passage_image_url,q.options,q.correct_answer,q.topic_name,q.difficulty,q.marks FROM questions q LEFT JOIN passage_groups pg ON pg.id=q.passage_group_id JOIN exam_sections s ON s.id=q.section_id JOIN exam_stages st ON st.id=s.stage_id JOIN exams e ON e.id=st.exam_id WHERE q.section_id=$1 AND q.status='published' AND e.status='published'";
+    "SELECT q.id,q.question_type,q.question_text,q.image_url,pg.title passage_title,pg.passage_text,pg.language passage_language,pg.image_url passage_image_url,q.options,q.correct_answer,q.topic_name,q.subtopic_name,q.difficulty,q.marks FROM questions q LEFT JOIN passage_groups pg ON pg.id=q.passage_group_id JOIN exam_sections s ON s.id=q.section_id JOIN exam_stages st ON st.id=s.stage_id JOIN exams e ON e.id=st.exam_id WHERE q.section_id=$1 AND q.status='published' AND e.status='published'";
   const values = [input.sectionId, seen];
   if (input.questionId) {
     sql += ` AND q.id=$${idx++}`;
@@ -212,6 +233,10 @@ contentRouter.post("/practice/sessions", requireAuth, async (req, res) => {
   if (input.topicName) {
     sql += ` AND q.topic_name=$${idx++}`;
     values.push(input.topicName);
+  }
+  if (input.subtopicName) {
+    sql += ` AND q.subtopic_name=$${idx++}`;
+    values.push(input.subtopicName);
   }
   if (input.difficulty) {
     sql += ` AND q.difficulty=$${idx++}`;
