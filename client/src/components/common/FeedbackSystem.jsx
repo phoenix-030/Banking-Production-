@@ -1,140 +1,37 @@
 // ============================================================================
 // UNIFIED FEEDBACK SYSTEM: TOAST, ALERT & MODAL
 // ============================================================================
-// Implements the three essential interaction design patterns:
-//
-// 1. TOAST (Quick Feedback Message)
-//    - Non-blocking notification in corner
-//    - Auto-dismisses after 3.5 seconds
-//    - Best for: "Product added successfully!", "Role updated", errors
-//
-// 2. ALERT (Important Warning or Information)
-//    - Prominent banner or floating card with bold title + description
-//    - Stays until manually dismissed with [X]
-//    - Best for: Warnings, critical notices, "Exam in draft status"
-//
-// 3. MODAL (User Interaction or Decision)
-//    - Screen-blocking dimmed backdrop overlay
-//    - Centered dialog with top icon, title, description, and [Cancel] / [Confirm]
-//    - Blocks screen until user makes an explicit decision
-//    - Best for: Destructive actions, role promotions/demotions, account suspensions
+// Connects to the Zustand useFeedback hook and renders the three visual tiers:
+// 1. ToastContainer (Quick non-blocking notifications in top-right)
+// 2. AlertContainer (Prominent warning banners in top-center)
+// 3. ConfirmModal (Screen-blocking decision confirmation dialogs)
 // ============================================================================
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  Check,
   CheckCircle2,
   Info,
   ShieldCheck,
   Trash2,
   UserCheck,
-  UserX,
   X
 } from "lucide-react";
+import { useFeedback } from "../../hooks/useFeedback";
 
-export const FeedbackContext = createContext(null);
-
-export function useFeedback() {
-  const ctx = useContext(FeedbackContext);
-  if (!ctx) {
-    throw new Error("useFeedback must be used within a FeedbackProvider");
-  }
-  return ctx;
-}
+// Re-export useFeedback for seamless backward compatibility
+export { useFeedback };
 
 /**
- * FeedbackProvider Root Component
- * Wraps the app and renders Toast, Alert, and Modal layers
+ * FeedbackProvider Component
+ * Renders children alongside the floating feedback layers powered by Zustand
  */
 export function FeedbackProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [modalState, setModalState] = useState(null);
-
-  // --------------------------------------------------------------------------
-  // 1. TOAST DISPATCHER (Quick non-blocking feedback)
-  // --------------------------------------------------------------------------
-  const showToast = useCallback((message, type = "success", duration = 3800) => {
-    if (!message) return;
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const text = typeof message === "object" ? message.message || message.error || JSON.stringify(message) : String(message);
-    const toastType = typeof message === "object" && message.type ? message.type : type;
-
-    setToasts((prev) => [...prev.slice(-3), { id, text, type: toastType }]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
-    }
-    return id;
-  }, []);
-
-  const dismissToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // Helper object for convenient toast syntax: toast.success('...'), toast.error('...')
-  const toast = {
-    success: (msg, dur) => showToast(msg, "success", dur),
-    error: (msg, dur) => showToast(msg, "error", dur),
-    warning: (msg, dur) => showToast(msg, "warning", dur),
-    info: (msg, dur) => showToast(msg, "info", dur),
-    dismiss: dismissToast
-  };
-
-  // --------------------------------------------------------------------------
-  // 2. ALERT DISPATCHER (Important warnings & persistent notices)
-  // --------------------------------------------------------------------------
-  const showAlert = useCallback(({ title, message, type = "warning" }) => {
-    const id = `alert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    setAlerts((prev) => [...prev, { id, title, message, type }]);
-    return id;
-  }, []);
-
-  const dismissAlert = useCallback((id) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
-  }, []);
-
-  const alert = {
-    show: showAlert,
-    warning: (title, message) => showAlert({ title, message, type: "warning" }),
-    info: (title, message) => showAlert({ title, message, type: "info" }),
-    error: (title, message) => showAlert({ title, message, type: "error" }),
-    dismiss: dismissAlert
-  };
-
-  // --------------------------------------------------------------------------
-  // 3. MODAL CONFIRMATION (Promise-based decision dialog)
-  // --------------------------------------------------------------------------
-  const confirm = useCallback(({
-    title = "Are you sure?",
-    message = "Please confirm this action to proceed.",
-    confirmText = "Confirm",
-    cancelText = "Cancel",
-    type = "primary", // 'primary' | 'danger' | 'warning'
-    icon = null // 'shield' | 'trash' | 'user' | 'alert'
-  } = {}) => {
-    return new Promise((resolve) => {
-      setModalState({
-        title,
-        message,
-        confirmText,
-        cancelText,
-        type,
-        icon,
-        resolve: (val) => {
-          setModalState(null);
-          resolve(val);
-        }
-      });
-    });
-  }, []);
+  const { toasts, alerts, modal, dismissToast, dismissAlert, closeModal } = useFeedback();
 
   return (
-    <FeedbackContext.Provider value={{ toast, alert, confirm, showToast, dismissToast }}>
+    <>
       {children}
 
       {/* Layer 1: Floating Persistent Alerts */}
@@ -144,14 +41,14 @@ export function FeedbackProvider({ children }) {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Layer 3: Screen-Blocking Decision Modal */}
-      {modalState && (
+      {modal && (
         <ConfirmModal
-          modal={modalState}
-          onConfirm={() => modalState.resolve(true)}
-          onCancel={() => modalState.resolve(false)}
+          modal={modal}
+          onConfirm={() => closeModal(true)}
+          onCancel={() => closeModal(false)}
         />
       )}
-    </FeedbackContext.Provider>
+    </>
   );
 }
 
@@ -260,7 +157,14 @@ export function ConfirmModal({ modal, onConfirm, onCancel }) {
     return <AlertCircle size={26} />;
   };
 
-  const badgeTheme = modal.type === "danger" ? "danger" : modal.icon === "shield" ? "lavender" : modal.type === "warning" ? "amber" : "primary";
+  const badgeTheme =
+    modal.type === "danger"
+      ? "danger"
+      : modal.icon === "shield"
+      ? "lavender"
+      : modal.type === "warning"
+      ? "amber"
+      : "primary";
 
   return (
     <div className="modal-backdrop" onClick={onCancel} role="dialog" aria-modal="true">
@@ -297,7 +201,13 @@ export function ConfirmModal({ modal, onConfirm, onCancel }) {
           </button>
           <button
             type="button"
-            className={`modal-btn modal-btn-confirm ${modal.type === "danger" ? "btn-danger" : modal.icon === "shield" ? "btn-lavender" : "btn-primary"}`}
+            className={`modal-btn modal-btn-confirm ${
+              modal.type === "danger"
+                ? "btn-danger"
+                : modal.icon === "shield"
+                ? "btn-lavender"
+                : "btn-primary"
+            }`}
             onClick={onConfirm}
             autoFocus
           >

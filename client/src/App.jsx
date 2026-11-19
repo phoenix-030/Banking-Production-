@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { ExamOptGroups } from "./utils/examCategories";
 import { subscribeCompanionTabLock } from "./utils/examLock";
-import { FeedbackProvider, useFeedback } from "./components/common/FeedbackSystem";
+import { FeedbackProvider } from "./components/common/FeedbackSystem";
+import { useAuth, useUI, useFeedback, useExamStore } from "./hooks";
 import {
   Activity,
   AlertCircle,
@@ -69,13 +70,17 @@ const adminPages = [
 // ============================================================================
 function AppShell() {
   // --------------------------------------------------------------------------
-  // Core State Management
+  // Core State Management via Zustand Hooks (client/src/hooks)
   // --------------------------------------------------------------------------
-  const [user, setUser] = useState(null);               // Authenticated user object (id, email, fullName, role)
-  const [loading, setLoading] = useState(true);           // Initial session verification loader
-  const [active, setActive] = useState("Overview");       // Currently active navigation tab
-  const [menuOpen, setMenuOpen] = useState(false);        // Mobile responsive sidebar toggle
-  const [lockedOutInfo, setLockedOutInfo] = useState(null); // Proctoring lockdown for duplicate browser tabs
+  const { user, loading, checkAuth, logout, setUser } = useAuth();
+  const {
+    activeTab: active,
+    setActiveTab: setActive,
+    menuOpen,
+    setMenuOpen,
+    lockedOutInfo,
+    setLockedOutInfo
+  } = useUI();
 
   // Unified Feedback Engine (Toast, Alert, ConfirmModal)
   const { toast, alert, confirm } = useFeedback();
@@ -83,18 +88,14 @@ function AppShell() {
   // --------------------------------------------------------------------------
   // Security: Single-Tab Lockdown Subscription (BroadcastChannel)
   // --------------------------------------------------------------------------
-  useEffect(() => subscribeCompanionTabLock(setLockedOutInfo), []);
+  useEffect(() => subscribeCompanionTabLock(setLockedOutInfo), [setLockedOutInfo]);
 
   // --------------------------------------------------------------------------
-  // Session Authentication: Check Active Cookie/Session with Backend
+  // Session Authentication: Verify Session with Backend on App Startup
   // --------------------------------------------------------------------------
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(async (r) => (r.ok ? (await r.json()).user : null))
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
-  }, []);
+    checkAuth();
+  }, [checkAuth]);
 
   // --------------------------------------------------------------------------
   // Universal Toast Dispatcher: Maps to Feedback Engine Toast Tiers
@@ -118,11 +119,7 @@ function AppShell() {
   // User Sign-Out Handler
   // --------------------------------------------------------------------------
   async function signOut() {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include"
-    }).catch(() => void 0);
-    setUser(null);
+    await logout();
     setActive("Overview");
     toast.info("You have been signed out successfully.");
   }
@@ -172,8 +169,6 @@ function AppShell() {
           }}
           onToast={flash}
         />
-        {/* Floating toast notifications for auth errors and feedback */}
-        <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </Suspense>
     );
 
@@ -377,20 +372,17 @@ export default function App() {
 // ============================================================================
 // Allows students to select their primary target exam (e.g. IBPS PO, SBI Clerk)
 function TargetExamSelector({ onToast }) {
-  const [exams, setExams] = useState([]);
+  const { exams, fetchExams } = useExamStore();
+  const { user, updateTargetExam } = useAuth();
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Fetch available exams catalogue and current user target exam profile
-    Promise.all([
-      fetch("/api/exams").then((r) => r.json()),
-      fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json())
-    ])
-      .then(([e, m]) => {
-        setExams(e.exams ?? []);
-        setSelected(m.profile?.target_exam_id ?? "");
-      })
+    // Fetch available exams catalogue via Zustand store and student profile
+    fetchExams();
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((m) => setSelected(m.profile?.target_exam_id || m.user?.target_exam_id || ""))
       .catch(() => setError("Exam list unavailable"));
 
     // Listen to custom window sync events across components
@@ -400,7 +392,7 @@ function TargetExamSelector({ onToast }) {
     };
     window.addEventListener("hhk:target-exam-updated", onSync);
     return () => window.removeEventListener("hhk:target-exam-updated", onSync);
-  }, []);
+  }, [fetchExams]);
 
   // Persist target exam selection to database
   async function change(id) {
@@ -414,12 +406,13 @@ function TargetExamSelector({ onToast }) {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: current.user.fullName,
-          mobile: current.user.mobile,
+          fullName: current.user?.fullName || user?.fullName,
+          mobile: current.user?.mobile || user?.mobile,
           targetExamId: id || null
         })
       });
       if (!response.ok) throw new Error();
+      if (updateTargetExam) updateTargetExam(id || null);
       window.dispatchEvent(
         new CustomEvent("hhk:target-exam-updated", { detail: id })
       );
